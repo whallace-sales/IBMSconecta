@@ -92,6 +92,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [isAvatarRemoved, setIsAvatarRemoved] = useState(false);
   const avatarRef = React.useRef<HTMLImageElement>(null);
 
+  // Estados de Senha
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   // Filtros de Relatório
   const initialFilters = {
     startDate: '',
@@ -113,6 +119,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Forçar troca de senha se o metadado estiver presente
+  useEffect(() => {
+    if (user.mustChangePassword) {
+      setIsChangePasswordModalOpen(true);
+    }
+  }, [user.mustChangePassword]);
 
   const fetchData = async () => {
     try {
@@ -251,8 +264,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const handleSaveMember = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const name = formData.get('name') as string;
+    const role = formData.get('role') as UserRole;
 
     let avatarUrl = isAvatarRemoved ? null : editingMember?.avatarUrl;
+    let userId = editingMember?.id;
+
+    if (!editingMember) {
+      // Criação de Novo Usuário (Sign Up)
+      const password = formData.get('password') as string;
+      if (!password || password.length < 6) {
+        alert('Defina uma senha de pelo menos 6 caracteres.');
+        return;
+      }
+
+      try {
+        // Importar createClient dinamicamente para usar uma instância sem persistência de sessão
+        const { createClient } = await import('@supabase/supabase-js');
+        const tempClient = createClient(
+          (import.meta as any).env.VITE_SUPABASE_URL,
+          (import.meta as any).env.VITE_SUPABASE_ANON_KEY,
+          { auth: { persistSession: false } }
+        );
+
+        const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name,
+              role,
+              must_change_password: true
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+        userId = signUpData.user?.id;
+      } catch (error: any) {
+        console.error('Erro ao criar conta:', error);
+        alert('Erro ao criar conta: ' + error.message);
+        return;
+      }
+    }
 
     // Lógica de Upload de Avatar (com Crop se houver novo arquivo)
     if (tempAvatarFile && !isAvatarRemoved) {
@@ -280,9 +335,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
 
     const memberData: any = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      role: formData.get('role') as UserRole,
+      name,
+      email,
+      role,
       phone: formData.get('phone') as string,
       address: formData.get('address') as string,
       birth_date: formData.get('birthDate') as string || null,
@@ -290,15 +345,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
 
     try {
-      if (editingMember) {
+      if (userId) {
         const { error } = await supabase
           .from('profiles')
           .update(memberData)
-          .eq('id', editingMember.id);
+          .eq('id', userId);
 
         if (error) throw error;
       } else {
-        alert('Para adicionar novos usuários com acesso de login, utilize o fluxo de Convite (Funcionalidade Futura).');
+        alert('Erro: ID do usuário não encontrado.');
         return;
       }
 
@@ -350,6 +405,55 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       fetchData();
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      alert('As senhas não coincidem!');
+      return;
+    }
+    if (newPassword.length < 6) {
+      alert('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      // Atualiza a senha e TAMBÉM limpa o flag must_change_password no metadata
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+        data: { must_change_password: false }
+      });
+
+      if (error) throw error;
+      alert('Senha alterada com sucesso!');
+      setIsChangePasswordModalOpen(false);
+      setNewPassword('');
+      setConfirmPassword('');
+
+      // Se for o admin logado, o App.tsx vai recarregar o perfil
+      // mas podemos forçar um reload ou atualizar localmente se necessário
+      window.location.reload();
+    } catch (error: any) {
+      alert('Erro ao alterar senha: ' + error.message);
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleResetMemberPassword = async (email: string) => {
+    if (!confirm(`Enviar link de redefinição de senha para ${email}?`)) return;
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      alert('E-mail de redefinição enviado com sucesso!');
+    } catch (error: any) {
+      alert('Erro ao enviar e-mail: ' + error.message);
     }
   };
 
@@ -605,6 +709,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         <td className="px-8 py-6 text-center">
                           <div className="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition">
                             <button onClick={() => { setEditingMember(u); setIsMemberModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                            <button onClick={() => handleResetMemberPassword(u.email)} className="text-orange-500 font-black text-[10px] uppercase hover:underline">Resetar Senha</button>
                             <button onClick={() => handleDeleteMember(u.id)} className="text-red-600 font-black text-[10px] uppercase hover:underline">Remover</button>
                           </div>
                         </td>
@@ -696,6 +801,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   </div>
                   <div className="pt-6"><button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-[24px] font-black uppercase text-xs tracking-widest shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition transform active:scale-[0.98]">Salvar Configurações</button></div>
                 </form>
+
+                <div className="mt-12 pt-12 border-t border-slate-100">
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="bg-orange-500 p-3 rounded-2xl text-white">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-slate-900 tracking-tight">Segurança</h3>
+                      <p className="text-slate-400 font-medium text-sm">Altere sua senha de acesso ao painel.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsChangePasswordModalOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition">Alterar Minha Senha</button>
+                </div>
               </div>
             </div>
           )}
@@ -833,6 +951,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nascimento</label><input type="date" name="birthDate" defaultValue={editingMember?.birthDate} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
               </div>
               <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">E-mail</label><input required name="email" type="email" defaultValue={editingMember?.email} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
+              {!editingMember && (
+                <div className="bg-indigo-50 p-6 rounded-[24px] border border-indigo-100">
+                  <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Senha Temporária</label>
+                  <input required name="password" type="password" placeholder="Mínimo 6 caracteres" className="w-full px-6 py-4 bg-white border border-indigo-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" />
+                  <p className="mt-2 text-[9px] text-indigo-400 font-bold uppercase tracking-tighter">O usuário poderá alterar esta senha no primeiro login.</p>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Telefone</label><input name="phone" placeholder="(00) 00000-0000" defaultValue={editingMember?.phone} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
                 <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nível de Acesso</label><select name="role" defaultValue={editingMember?.role || UserRole.READER} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value={UserRole.ADMIN}>Administrador</option><option value={UserRole.TREASURER}>Tesoureiro</option><option value={UserRole.READER}>Membro Comum</option></select></div>
@@ -846,6 +971,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       {isPostModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in"><div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl p-10"><h3 className="text-2xl font-black mb-8 text-slate-900 tracking-tight">Postagem</h3><form onSubmit={handleSavePost} className="space-y-6"><input required name="title" placeholder="Título da Publicação" defaultValue={editingPost?.title} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /><input name="imageUrl" placeholder="URL da Imagem de Destaque" defaultValue={editingPost?.imageUrl} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /><textarea required name="content" defaultValue={editingPost?.content} rows={6} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold resize-none" placeholder="Conteúdo da mensagem..."></textarea><div className="pt-4 flex gap-4"><button type="button" onClick={() => setIsPostModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Voltar</button><button type="submit" className="flex-1 bg-indigo-600 text-white py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl">Publicar</button></div></form></div></div>
+      )}
+      {isChangePasswordModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-6 animate-in fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl p-10">
+            {user.mustChangePassword && (
+              <div className="bg-orange-50 p-4 rounded-2xl mb-6 text-orange-700 text-xs font-bold uppercase tracking-tight text-center">
+                Troca de senha obrigatória no primeiro acesso
+              </div>
+            )}
+            <h3 className="text-xl font-black mb-8 text-slate-900 uppercase tracking-widest text-center">Definir Senha</h3>
+            <form onSubmit={handleUpdatePassword} className="space-y-6">
+              <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nova Senha</label><input required type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+              <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Confirmar</label><input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+              <div className="pt-4 flex gap-4">
+                {!user.mustChangePassword && (
+                  <button type="button" onClick={() => setIsChangePasswordModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Sair</button>
+                )}
+                <button type="submit" disabled={passwordLoading} className="flex-1 bg-indigo-600 text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest disabled:opacity-50">
+                  {passwordLoading ? '...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

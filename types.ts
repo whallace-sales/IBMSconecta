@@ -16,6 +16,7 @@ export interface User {
   address?: string;
   phone?: string;
   avatarUrl?: string;
+  mustChangePassword?: boolean;
 }
 
 export interface ChurchInfo {
@@ -49,7 +50,7 @@ export interface Transaction {
   type: 'INCOME' | 'EXPENSE';
   category: string;
   date: string;
-  member?: string; 
+  member?: string;
 }
 
 export interface ChurchStats {

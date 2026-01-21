@@ -21,15 +21,18 @@ const App: React.FC = () => {
     const handleSession = async (session: any) => {
       if (session?.user) {
         let profile = await getProfile(session.user.id);
+        const mustChangePassword = session.user.user_metadata?.must_change_password === true;
 
-        // Fallback: If profile doesn't exist yet (trigger delay or error), create temp user from Auth
-        if (!profile) {
+        if (profile) {
+          profile = { ...profile, mustChangePassword };
+        } else {
           console.warn('Profile not found, using Auth data as fallback');
           profile = {
             id: session.user.id,
             name: session.user.user_metadata?.name || 'Usuário',
             email: session.user.email || '',
             role: session.user.user_metadata?.role || 'LEITOR',
+            mustChangePassword
           } as User;
         }
 
