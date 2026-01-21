@@ -295,7 +295,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             data: {
               name,
               role,
-              must_change_password: true
+              must_change_password: true,
+              phone: formData.get('phone') as string,
+              address: formData.get('address') as string,
+              birth_date: formData.get('birthDate') as string || null,
             }
           }
         });
@@ -346,10 +349,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     try {
       if (userId) {
+        // Usar upsert em vez de update para evitar falha caso o trigger ainda não tenha criado o perfil
         const { error } = await supabase
           .from('profiles')
-          .update(memberData)
-          .eq('id', userId);
+          .upsert({
+            id: userId,
+            ...memberData
+          });
 
         if (error) throw error;
       } else {
