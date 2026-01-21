@@ -202,24 +202,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    // Preparar objeto de dados do perfil
-    // Nota: Em um cenário real de auth, 'email' e 'role' geralmente são geridos via Auth Admin API
-    // Aqui estamos atualizando a tabela 'profiles' que estende o usuário.
+    let avatarUrl = editingMember?.avatarUrl;
+
+    // Lógica de Upload de Avatar
+    const avatarFile = formData.get('avatarFile') as File;
+    if (avatarFile && avatarFile.size > 0) {
+      const fileExt = avatarFile.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+      const filePath = `members/${fileName}`;
+
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, avatarFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        avatarUrl = publicUrl;
+      } catch (error) {
+        console.error('Error uploading avatar:', error);
+        alert('Erro ao fazer upload da imagem. Verifique se o bucket "avatars" existe e é público.');
+      }
+    }
+
     const memberData: any = {
       name: formData.get('name') as string,
-      email: formData.get('email') as string, // Apenas informativo se for update, ou usado em convites
+      email: formData.get('email') as string,
       role: formData.get('role') as UserRole,
       phone: formData.get('phone') as string,
       address: formData.get('address') as string,
       birth_date: formData.get('birthDate') as string || null,
+      avatar_url: avatarUrl,
     };
-
-    // Se tiver upload de avatar (implementação futura com Storage), trataria aqui
-    // memberData.avatar_url = ...
 
     try {
       if (editingMember) {
-        // Atualizar membro existente
         const { error } = await supabase
           .from('profiles')
           .update(memberData)
@@ -227,21 +248,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
         if (error) throw error;
       } else {
-        // Criar novo membro (Simulação: na prática exige criar usuário no Auth primeiro)
-        // Como não temos acesso à API de Admin do Auth no client-side, vamos apenas
-        // inserir na tabela profiles se o ID for gerado ou se usarmos uma Edge Function.
-        // PERCORRER ESTE CAMINHO EXIGE CUIDADO: Normalmente cria-se o usuário no Auth
-        // e o trigger cria o profile. Aqui vamos tentar inserir direto para testar,
-        // mas o ideal é ter um fluxo de convite.
-
-        // WORKAROUND para Demo: Inserir com um ID aleatório se a tabela permitir,
-        // ou alertar que criação de usuário requer fluxo de convite.
-        alert('Para adicionar novos usuários com acesso de login, utilize o fluxo de Convite (Funcionalidade Futura). Apenas atualizei os dados se o ID existisse.');
+        alert('Para adicionar novos usuários com acesso de login, utilize o fluxo de Convite (Funcionalidade Futura).');
         return;
       }
 
       setIsMemberModalOpen(false);
-      fetchData(); // Recarregar lista
+      fetchData();
       alert('Dados do membro salvos com sucesso!');
     } catch (error: any) {
       console.error('Erro ao salvar membro:', error);

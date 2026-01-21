@@ -26,11 +26,11 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
 
   return (
     <div className="py-12 px-6 max-w-4xl mx-auto animate-in fade-in duration-500">
-      <button 
+      <button
         onClick={onBack}
         className="flex items-center gap-2 text-indigo-600 font-bold mb-8 hover:translate-x-[-4px] transition-transform"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
         Voltar para a lista
       </button>
 
@@ -53,33 +53,33 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
             <p key={index}>{paragraph}</p>
           ))}
           <p>
-            É com grande alegria que compartilhamos estas atualizações com nossa comunidade. 
-            Nossa missão é levar a esperança de Cristo a todos os lugares, e cada atividade relatada aqui 
+            É com grande alegria que compartilhamos estas atualizações com nossa comunidade.
+            Nossa missão é levar a esperança de Cristo a todos os lugares, e cada atividade relatada aqui
             é um passo em direção a esse propósito maior.
           </p>
           <p>
-            Agradecemos a todos os voluntários, membros e parceiros que tornam possível a realização destes eventos. 
-            Sua dedicação é o reflexo do amor de Deus em ação. Se você deseja se envolver ou saber mais sobre como 
+            Agradecemos a todos os voluntários, membros e parceiros que tornam possível a realização destes eventos.
+            Sua dedicação é o reflexo do amor de Deus em ação. Se você deseja se envolver ou saber mais sobre como
             participar, entre em contato conosco através de nossas redes sociais ou diretamente em nossa sede.
           </p>
           <p className="font-bold italic text-indigo-900">
             "Pois onde dois ou três estiverem reunidos em meu nome, ali estou eu no meio deles." - Mateus 18:20
           </p>
         </div>
-        
+
         <footer className="pt-12 border-t border-gray-100">
           <div className="bg-indigo-50 p-8 rounded-[32px] flex flex-col md:flex-row items-center justify-between gap-6">
-             <div className="flex items-center gap-4">
-               <img src={`https://i.pravatar.cc/100?u=${post.author}`} className="w-16 h-16 rounded-full border-4 border-white shadow-sm" alt={post.author} />
-               <div>
-                 <p className="font-bold text-gray-900">Escrito por {post.author}</p>
-                 <p className="text-sm text-gray-500">Membro da Equipe de Comunicação da IgrejaConecta</p>
-               </div>
-             </div>
-             <div className="bg-white/50 px-6 py-3 rounded-2xl border border-indigo-100 flex flex-col items-center md:items-end">
-                <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1">Publicado em</span>
-                <span className="font-black text-indigo-900">{formattedDate} às {postTime}</span>
-             </div>
+            <div className="flex items-center gap-4">
+              <img src={`https://i.pravatar.cc/100?u=${post.author}`} className="w-16 h-16 rounded-full border-4 border-white shadow-sm" alt={post.author} />
+              <div>
+                <p className="font-bold text-gray-900">Escrito por {post.author}</p>
+                <p className="text-sm text-gray-500">Membro da Equipe de Comunicação da IgrejaConecta</p>
+              </div>
+            </div>
+            <div className="bg-white/50 px-6 py-3 rounded-2xl border border-indigo-100 flex flex-col items-center md:items-end">
+              <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1">Publicado em</span>
+              <span className="font-black text-indigo-900">{formattedDate} às {postTime}</span>
+            </div>
           </div>
         </footer>
       </article>
