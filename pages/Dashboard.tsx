@@ -11,6 +11,47 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
+// Auxiliar para recortar imagem via Canvas
+const createCroppedImage = (imageSrc: string, scale: number, position: { x: number, y: number }): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.src = imageSrc;
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      const size = 400; // Tamanho padrão do recorte circular
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) return reject('No context');
+
+      // Desenhar fundo branco/transparente
+      ctx.clearRect(0, 0, size, size);
+
+      // Calcular dimensões baseadas no zoom e posição
+      // No preview: translate(pos.x, pos.y) scale(scale)
+      // O preview tem 160px (40*4). O canvas tem 400px. Fator 2.5x.
+      const factor = size / 160;
+
+      const drawWidth = image.width * scale * (size / Math.min(image.width, image.height));
+      const drawHeight = image.height * scale * (size / Math.min(image.width, image.height));
+
+      // Centralizar e aplicar o offset do usuário
+      const dx = (size - drawWidth) / 2 + (position.x * factor);
+      const dy = (size - drawHeight) / 2 + (position.y * factor);
+
+      ctx.drawImage(image, dx, dy, drawWidth, drawHeight);
+
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject('Canvas is empty');
+      }, 'image/jpeg', 0.9);
+    };
+    image.onerror = (err) => reject(err);
+  });
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'finances' | 'posts' | 'members' | 'reports' | 'settings'>('overview');
   const [financeSubTab, setFinanceSubTab] = useState<'transactions' | 'categories'>('transactions');
@@ -41,6 +82,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [editingMember, setEditingMember] = useState<User | null>(null);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+
+  // Estados para Ajuste de Avatar
+  const [tempAvatarFile, setTempAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarScale, setAvatarScale] = useState(1);
+  const [avatarPos, setAvatarPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const avatarRef = React.useRef<HTMLImageElement>(null);
 
   // Filtros de Relatório
   const initialFilters = {
@@ -204,17 +253,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     let avatarUrl = editingMember?.avatarUrl;
 
-    // Lógica de Upload de Avatar
-    const avatarFile = formData.get('avatarFile') as File;
-    if (avatarFile && avatarFile.size > 0) {
-      const fileExt = avatarFile.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-      const filePath = `members/${fileName}`;
-
+    // Lógica de Upload de Avatar (com Crop se houver novo arquivo)
+    if (tempAvatarFile) {
       try {
+        const croppedFile = await createCroppedImage(avatarPreview!, avatarScale, avatarPos);
+        const fileExt = tempAvatarFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+        const filePath = `members/${fileName}`;
+
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, avatarFile);
+          .upload(filePath, croppedFile);
 
         if (uploadError) throw uploadError;
 
@@ -225,7 +274,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         avatarUrl = publicUrl;
       } catch (error) {
         console.error('Error uploading avatar:', error);
-        alert('Erro ao fazer upload da imagem. Verifique se o bucket "avatars" existe e é público.');
+        alert('Erro ao processar imagem.');
       }
     }
 
@@ -253,6 +302,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       }
 
       setIsMemberModalOpen(false);
+      setTempAvatarFile(null);
+      setAvatarPreview(null);
+      setAvatarPos({ x: 0, y: 0 });
+      setAvatarScale(1);
       fetchData();
       alert('Dados do membro salvos com sucesso!');
     } catch (error: any) {
@@ -689,10 +742,72 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             <h3 className="text-2xl font-black mb-8 text-slate-900 tracking-tight">{editingMember ? 'Atualizar Perfil' : 'Cadastrar Membro'}</h3>
             <form onSubmit={handleSaveMember} className="space-y-5">
               <div className="flex flex-col items-center mb-6">
-                <div className="h-24 w-24 bg-slate-50 rounded-full border-4 border-white shadow-xl overflow-hidden mb-4">
-                  {(editingMember?.avatarUrl) ? <img src={editingMember.avatarUrl} className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-slate-200"><svg className="w-12 h-12" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg></div>}
+                <div className="relative h-40 w-40 bg-slate-100 rounded-full border-4 border-white shadow-xl overflow-hidden mb-6 group cursor-move select-none"
+                  onMouseDown={() => setIsDragging(true)}
+                  onMouseUp={() => setIsDragging(false)}
+                  onMouseLeave={() => setIsDragging(false)}
+                  onMouseMove={(e) => {
+                    if (!isDragging) return;
+                    setAvatarPos(prev => ({
+                      x: prev.x + e.movementX,
+                      y: prev.y + e.movementY
+                    }));
+                  }}>
+
+                  {avatarPreview || editingMember?.avatarUrl ? (
+                    <img
+                      ref={avatarRef}
+                      src={avatarPreview || editingMember?.avatarUrl}
+                      className="absolute max-w-none"
+                      style={{
+                        transform: `translate(${avatarPos.x}px, ${avatarPos.y}px) scale(${avatarScale})`,
+                        top: '50%',
+                        left: '50%',
+                        marginTop: '-50%',
+                        marginLeft: '-50%',
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-slate-300">
+                      <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
+                    <span className="text-white text-[10px] font-black uppercase tracking-widest">Arraste para ajustar</span>
+                  </div>
                 </div>
-                <input name="avatarFile" type="file" accept="image/*" className="text-xs text-slate-400 file:bg-slate-900 file:text-white file:px-4 file:py-1 file:rounded-full file:border-0 file:text-[8px] file:font-black file:uppercase file:cursor-pointer" />
+
+                <div className="w-full max-w-xs space-y-4">
+                  <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Zoom</span>
+                    <input
+                      type="range" min="1" max="3" step="0.1"
+                      value={avatarScale}
+                      onChange={(e) => setAvatarScale(parseFloat(e.target.value))}
+                      className="flex-grow accent-indigo-600"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      name="avatarFile" type="file" accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setTempAvatarFile(file);
+                          setAvatarPreview(URL.createObjectURL(file));
+                          setAvatarPos({ x: 0, y: 0 });
+                          setAvatarScale(1);
+                        }
+                      }}
+                      className="text-xs text-slate-400 file:bg-slate-900 file:text-white file:px-6 file:py-2 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:cursor-pointer w-full"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome Completo</label><input required name="name" defaultValue={editingMember?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
