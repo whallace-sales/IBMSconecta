@@ -1,0 +1,5 @@
+{
+  "name": "IgrejaConecta - Sistema de Gestão Eclesial",
+  "description": "Um sistema completo para igrejas com portal público para membros e painel administrativo restrito para gestão financeira e de conteúdos.",
+  "requestFramePermissions": []
+}
