@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User } from './types';
+import { User, UserRole } from './types';
 import { Navbar } from './components/Navbar';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
@@ -31,7 +31,7 @@ const App: React.FC = () => {
             id: session.user.id,
             name: session.user.user_metadata?.name || 'Usuário',
             email: session.user.email || '',
-            role: session.user.user_metadata?.role || 'LEITOR',
+            role: (session.user.user_metadata?.role as UserRole) || UserRole.READER,
             mustChangePassword
           } as User;
         }
@@ -58,8 +58,14 @@ const App: React.FC = () => {
   }, [view]); // Added view dependency to properly handle redirects
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    // Vew redirection handled by listener
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+    setUser(null);
+    setView('home');
+    window.location.reload(); // Garante limpeza total do estado
   };
 
   const navigateTo = (newView: 'home' | 'blog' | 'login' | 'dashboard' | 'post-detail', postId?: string) => {

@@ -991,8 +991,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nova Senha</label><input required type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
               <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Confirmar</label><input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
               <div className="pt-4 flex gap-4">
-                {!user.mustChangePassword && (
+                {!user.mustChangePassword ? (
                   <button type="button" onClick={() => setIsChangePasswordModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Sair</button>
+                ) : (
+                  <button type="button" onClick={onLogout} className="flex-1 px-4 py-4 border border-red-100 text-red-500 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Sair/Logoff</button>
                 )}
                 <button type="submit" disabled={passwordLoading} className="flex-1 bg-indigo-600 text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest disabled:opacity-50">
                   {passwordLoading ? '...' : 'Salvar'}
