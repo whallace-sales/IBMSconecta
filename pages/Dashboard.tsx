@@ -89,6 +89,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [avatarScale, setAvatarScale] = useState(1);
   const [avatarPos, setAvatarPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isAvatarRemoved, setIsAvatarRemoved] = useState(false);
   const avatarRef = React.useRef<HTMLImageElement>(null);
 
   // Filtros de Relatório
@@ -251,10 +252,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    let avatarUrl = editingMember?.avatarUrl;
+    let avatarUrl = isAvatarRemoved ? null : editingMember?.avatarUrl;
 
     // Lógica de Upload de Avatar (com Crop se houver novo arquivo)
-    if (tempAvatarFile) {
+    if (tempAvatarFile && !isAvatarRemoved) {
       try {
         const croppedFile = await createCroppedImage(avatarPreview!, avatarScale, avatarPos);
         const fileExt = tempAvatarFile.name.split('.').pop();
@@ -306,6 +307,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setAvatarPreview(null);
       setAvatarPos({ x: 0, y: 0 });
       setAvatarScale(1);
+      setIsAvatarRemoved(false);
       fetchData();
       alert('Dados do membro salvos com sucesso!');
     } catch (error: any) {
@@ -754,11 +756,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     }));
                   }}>
 
-                  {avatarPreview || editingMember?.avatarUrl ? (
+                  {(!isAvatarRemoved && (avatarPreview || editingMember?.avatarUrl)) ? (
                     <img
                       ref={avatarRef}
                       src={avatarPreview || editingMember?.avatarUrl}
-                      className="absolute max-w-none"
+                      className="absolute max-w-none shadow-inner"
                       style={{
                         transform: `translate(${avatarPos.x}px, ${avatarPos.y}px) scale(${avatarScale})`,
                         top: '50%',
@@ -782,17 +784,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </div>
 
                 <div className="w-full max-w-xs space-y-4">
-                  <div className="flex items-center gap-4">
-                    <span className="text-[10px] font-black text-slate-400 uppercase">Zoom</span>
-                    <input
-                      type="range" min="1" max="3" step="0.1"
-                      value={avatarScale}
-                      onChange={(e) => setAvatarScale(parseFloat(e.target.value))}
-                      className="flex-grow accent-indigo-600"
-                    />
-                  </div>
+                  {(avatarPreview || editingMember?.avatarUrl) && !isAvatarRemoved && (
+                    <div className="flex items-center gap-4">
+                      <span className="text-[10px] font-black text-slate-400 uppercase">Zoom</span>
+                      <input
+                        type="range" min="1" max="3" step="0.1"
+                        value={avatarScale}
+                        onChange={(e) => setAvatarScale(parseFloat(e.target.value))}
+                        className="flex-grow accent-indigo-600"
+                      />
+                    </div>
+                  )}
 
-                  <div className="relative">
+                  <div className="flex flex-col gap-3">
                     <input
                       name="avatarFile" type="file" accept="image/*"
                       onChange={(e) => {
@@ -802,10 +806,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           setAvatarPreview(URL.createObjectURL(file));
                           setAvatarPos({ x: 0, y: 0 });
                           setAvatarScale(1);
+                          setIsAvatarRemoved(false);
                         }
                       }}
                       className="text-xs text-slate-400 file:bg-slate-900 file:text-white file:px-6 file:py-2 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:cursor-pointer w-full"
                     />
+
+                    {(avatarPreview || editingMember?.avatarUrl) && !isAvatarRemoved && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAvatarRemoved(true);
+                          setTempAvatarFile(null);
+                          setAvatarPreview(null);
+                        }}
+                        className="text-red-500 text-[10px] font-black uppercase tracking-widest hover:underline text-left px-2"
+                      >
+                        × Remover Foto Atual
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
