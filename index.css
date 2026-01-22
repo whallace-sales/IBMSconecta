@@ -7,3 +7,40 @@ body {
   margin: 0;
   font-family: 'Inter', sans-serif;
 }
+
+/* Custom Quill Styles */
+.ql-toolbar.ql-snow {
+  border: none !important;
+  background: #f8fafc;
+  padding: 12px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  border-radius: 16px 16px 0 0;
+}
+
+.ql-container.ql-snow {
+  border: none !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.875rem !important;
+}
+
+.ql-editor {
+  min-height: 150px;
+  padding: 16px !important;
+}
+
+.ql-editor.ql-blank::before {
+  color: #94a3b8 !important;
+  font-style: normal !important;
+}
+
+.ql-snow .ql-stroke {
+  stroke: #64748b !important;
+}
+
+.ql-snow .ql-fill {
+  fill: #64748b !important;
+}
+
+.ql-snow.ql-toolbar button:hover .ql-stroke {
+  stroke: #4f46e5 !important;
+}

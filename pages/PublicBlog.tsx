@@ -40,7 +40,9 @@ export const PublicBlog: React.FC<PublicBlogProps> = ({ onNavigate }) => {
                 <span>Por {post.author}</span>
               </div>
               <h2 className="text-3xl font-bold text-gray-900 group-hover:text-indigo-600 transition">{post.title}</h2>
-              <p className="text-gray-600 text-lg leading-relaxed line-clamp-3">{post.content}</p>
+              <p className="text-gray-600 text-lg leading-relaxed line-clamp-3">
+                {post.content.replace(/<[^>]*>/g, '')}
+              </p>
               <button
                 onClick={() => onNavigate('post-detail', post.id)}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-semibold transition"

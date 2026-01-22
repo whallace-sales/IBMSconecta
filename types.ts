@@ -17,6 +17,7 @@ export interface User {
   phone?: string;
   avatarUrl?: string;
   mustChangePassword?: boolean;
+  gender?: 'M' | 'F' | 'OTHER';
 }
 
 export interface ChurchInfo {
@@ -31,6 +32,8 @@ export interface Category {
   id: string;
   name: string;
   color: string;
+  type: 'INCOME' | 'EXPENSE';
+  description?: string;
 }
 
 export interface Post {
@@ -52,6 +55,13 @@ export interface Transaction {
   category: string;
   date: string;
   member?: string;
+  isPaid?: boolean;
+  account?: string;
+  costCenter?: string;
+  paymentType?: string;
+  docNumber?: string;
+  competence?: string;
+  notes?: string;
 }
 
 export interface ChurchStats {
@@ -59,4 +69,49 @@ export interface ChurchStats {
   monthlyIncome: number;
   monthlyExpense: number;
   activeMinistries: number;
+}
+
+export interface EventCategory {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  startDate: string;
+  startTime?: string;
+  endDate: string;
+  endTime?: string;
+  isAllDay: boolean;
+  location?: string;
+  categoryId?: string;
+  isPrivate: boolean;
+  repeat?: 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  description?: string;
+  bannerUrl?: string;
+  icon?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface DepartmentRole {
+  id: string;
+  departmentId: string;
+  name: string;
+}
+
+export interface DepartmentMember {
+  id: string;
+  departmentId: string;
+  userId: string;
+  user?: User;
+  roles: string[]; // List of role names or IDs
 }

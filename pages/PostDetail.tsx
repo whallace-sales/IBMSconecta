@@ -62,11 +62,10 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
           <img src={post.imageUrl} className="w-full h-full object-cover" alt={post.title} />
         </div>
 
-        <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed space-y-6 text-xl">
-          {post.content.split('\n').map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
-        </div>
+        <div
+          className="prose prose-lg max-w-none text-gray-700 leading-relaxed space-y-6 text-xl post-content"
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
 
         <footer className="pt-12 border-t border-gray-100">
           <div className="bg-indigo-50 p-8 rounded-[32px] flex flex-col md:flex-row items-center justify-between gap-6">

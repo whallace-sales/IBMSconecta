@@ -56,6 +56,8 @@ create table public.categories (
   id uuid default uuid_generate_v4() primary key,
   name text not null,
   color text not null,
+  type text check (type in ('INCOME', 'EXPENSE')) default 'INCOME' not null,
+  description text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -110,6 +112,13 @@ create table public.transactions (
   category_id uuid references public.categories(id),
   date date default CURRENT_DATE,
   member_name text, 
+  is_paid boolean default true,
+  account text default 'Principal',
+  cost_center text,
+  payment_type text default 'Único',
+  doc_number text,
+  competence text,
+  notes text,
   created_by uuid references public.profiles(id),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -151,3 +160,105 @@ insert into public.church_settings (name, address, email)
 values ('Igreja Conecta', 'Rua da Fé, 123', 'contato@igreja.com')
 on conflict do nothing;
 
+-- -----------------------------------------------------------------------------
+-- 6. Event Categories
+-- -----------------------------------------------------------------------------
+create table public.event_categories (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  color text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.event_categories enable row level security;
+create policy "event_categories_select" on public.event_categories for select using (true);
+create policy "event_categories_admin_all" on public.event_categories for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN'
+);
+
+-- Seed event categories
+insert into public.event_categories (name, color) values
+  ('Adolescentes', '#6366f1'),
+  ('Café da manhã', '#f59e0b'),
+  ('Direção Culto', '#10b981'),
+  ('Escala Limpeza', '#6b7280'),
+  ('Evangelismo', '#ec4899'),
+  ('Louvor', '#8b5cf6'),
+  ('Mulheres', '#f472b6'),
+  ('Vigília', '#1e293b')
+on conflict do nothing;
+
+-- -----------------------------------------------------------------------------
+-- 7. Events (Agenda)
+-- -----------------------------------------------------------------------------
+create table public.events (
+  id uuid default uuid_generate_v4() primary key,
+  title text not null,
+  description text,
+  start_date date not null,
+  start_time time,
+  end_date date not null,
+  end_time time,
+  is_all_day boolean default false,
+  location text,
+  category_id uuid references public.event_categories(id),
+  is_private boolean default false,
+  repeat text check (repeat in ('NONE', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY')) default 'NONE',
+  created_by uuid references public.profiles(id),
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.events enable row level security;
+create policy "events_select" on public.events for select using (
+  not is_private or (auth.uid() = created_by) or ((auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN')
+);
+create policy "events_admin_all" on public.events for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN'
+);
+
+-- -----------------------------------------------------------------------------
+-- 8. Departments
+-- -----------------------------------------------------------------------------
+create table public.departments (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  description text,
+  banner_url text,
+  icon text,
+  is_active boolean default true,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.departments enable row level security;
+create policy "departments_select" on public.departments for select using (true);
+create policy "departments_admin_all" on public.departments for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN'
+);
+
+create table public.department_roles (
+  id uuid default uuid_generate_v4() primary key,
+  department_id uuid references public.departments(id) on delete cascade,
+  name text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.department_roles enable row level security;
+create policy "department_roles_select" on public.department_roles for select using (true);
+create policy "department_roles_admin_all" on public.department_roles for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN'
+);
+
+create table public.department_members (
+  id uuid default uuid_generate_v4() primary key,
+  department_id uuid references public.departments(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  roles text[] default '{}',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(department_id, user_id)
+);
+
+alter table public.department_members enable row level security;
+create policy "department_members_select" on public.department_members for select using (true);
+create policy "department_members_admin_all" on public.department_members for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN'
+);
