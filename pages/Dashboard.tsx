@@ -55,6 +55,15 @@ const createCroppedImage = (imageSrc: string, scale: number, position: { x: numb
 export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'finances' | 'posts' | 'members' | 'reports' | 'settings'>('overview');
   const [financeSubTab, setFinanceSubTab] = useState<'transactions' | 'categories'>('transactions');
+  const [memberSubTab, setMemberSubTab] = useState<'list' | 'birthdays'>('list');
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+
+  const monthsList = [
+    { id: 0, name: 'Jan' }, { id: 1, name: 'Fev' }, { id: 2, name: 'Mar' },
+    { id: 3, name: 'Abr' }, { id: 4, name: 'Mai' }, { id: 5, name: 'Jun' },
+    { id: 6, name: 'Jul' }, { id: 7, name: 'Ago' }, { id: 8, name: 'Set' },
+    { id: 9, name: 'Out' }, { id: 10, name: 'Nov' }, { id: 11, name: 'Dez' }
+  ];
 
   const tabTitles = {
     overview: 'Visão Geral',
@@ -126,6 +135,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setIsChangePasswordModalOpen(true);
     }
   }, [user.mustChangePassword]);
+
+  const birthdayCounts = useMemo(() => {
+    const counts = Array(12).fill(0);
+    allUsers.forEach(u => {
+      if (u.birthDate) {
+        const month = parseInt(u.birthDate.split('-')[1]) - 1;
+        if (month >= 0 && month < 12) counts[month]++;
+      }
+    });
+    return counts;
+  }, [allUsers]);
+
+  const selectedMonthMembers = useMemo(() => {
+    return allUsers.filter(u => {
+      if (!u.birthDate) return false;
+      const month = parseInt(u.birthDate.split('-')[1]) - 1;
+      return month === selectedMonth;
+    }).sort((a, b) => {
+      const dayA = parseInt(a.birthDate!.split('-')[2]);
+      const dayB = parseInt(b.birthDate!.split('-')[2]);
+      return dayA - dayB;
+    });
+  }, [allUsers, selectedMonth]);
 
   const fetchData = async () => {
     try {
@@ -691,39 +723,139 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'members' && (
-            <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Gerenciar Membros</h3>
-                <button onClick={() => { setEditingMember(null); setIsMemberModalOpen(true); }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-slate-800 transition">+ Novo Cadastro</button>
+            <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
+              <div className="flex gap-6 border-b border-slate-200">
+                <button
+                  onClick={() => setMemberSubTab('list')}
+                  className={`pb-4 px-2 font-black text-xs uppercase tracking-widest transition ${memberSubTab === 'list' ? 'text-indigo-600 border-b-4 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Lista Geral
+                </button>
+                <button
+                  onClick={() => setMemberSubTab('birthdays')}
+                  className={`pb-4 px-2 font-black text-xs uppercase tracking-widest transition ${memberSubTab === 'birthdays' ? 'text-indigo-600 border-b-4 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Aniversariantes
+                </button>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[1000px]">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest"><th className="px-8 py-5">Nome / E-mail</th><th className="px-8 py-5">Nascimento</th><th className="px-8 py-5">Endereço</th><th className="px-8 py-5 text-center">Ações</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {allUsers.map(u => (
-                      <tr key={u.id} className="hover:bg-slate-50 transition group">
-                        <td className="px-8 py-6">
-                          <div className="flex items-center gap-4">
-                            <img src={u.avatarUrl || `https://i.pravatar.cc/100?u=${u.id}`} className="w-12 h-12 rounded-full border border-slate-100 shadow-sm object-cover" />
-                            <div><div className="font-bold text-slate-800">{u.name}</div><div className="text-[10px] text-slate-400 font-bold tracking-tight">{u.email}</div></div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 text-slate-600 text-sm font-bold tracking-tighter">{u.birthDate ? u.birthDate.split('-').reverse().join('/') : '-'}</td>
-                        <td className="px-8 py-6 text-slate-600 text-[10px] font-bold uppercase max-w-[200px] truncate" title={u.address}>{u.address || '-'}</td>
-                        <td className="px-8 py-6 text-center">
-                          <div className="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition">
-                            <button onClick={() => { setEditingMember(u); setIsMemberModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
-                            <button onClick={() => handleResetMemberPassword(u.email)} className="text-orange-500 font-black text-[10px] uppercase hover:underline">Resetar Senha</button>
-                            <button onClick={() => handleDeleteMember(u.id)} className="text-red-600 font-black text-[10px] uppercase hover:underline">Remover</button>
-                          </div>
-                        </td>
-                      </tr>
+
+              {memberSubTab === 'list' ? (
+                <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Gerenciar Membros</h3>
+                    <button onClick={() => { setEditingMember(null); setIsMemberModalOpen(true); }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-slate-800 transition">+ Novo Cadastro</button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[1000px] border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                          <th className="px-8 py-5 w-20">Avatar</th>
+                          <th className="px-8 py-5">Nome Completo</th>
+                          <th className="px-8 py-5">E-mail</th>
+                          <th className="px-8 py-5">Nascimento</th>
+                          <th className="px-8 py-5">Telefone</th>
+                          <th className="px-8 py-5 text-center">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {allUsers.map((u, index) => (
+                          <tr key={u.id} className={`transition group ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-indigo-50/30`}>
+                            <td className="px-8 py-4">
+                              <img
+                                src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`}
+                                className="w-11 h-11 rounded-full border-2 border-white shadow-sm object-cover"
+                              />
+                            </td>
+                            <td className="px-8 py-4">
+                              <div className="font-bold text-indigo-900 text-sm tracking-tight">{u.name}</div>
+                              {u.role === UserRole.ADMIN && <span className="text-[9px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">Admin</span>}
+                            </td>
+                            <td className="px-8 py-4 text-slate-500 text-xs font-medium">{u.email}</td>
+                            <td className="px-8 py-4 text-slate-500 text-xs font-bold tracking-tighter">
+                              {u.birthDate ? u.birthDate.split('-').reverse().join('/') : '-'}
+                            </td>
+                            <td className="px-8 py-4 text-slate-500 text-xs font-medium">
+                              {u.phone || '-'}
+                            </td>
+                            <td className="px-8 py-4 text-center">
+                              <div className="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition">
+                                <button onClick={() => { setEditingMember(u); setIsMemberModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                                <button onClick={() => handleResetMemberPassword(u.email)} className="text-orange-500 font-black text-[10px] uppercase hover:underline">Resetar</button>
+                                <button onClick={() => handleDeleteMember(u.id)} className="text-red-600 font-black text-[10px] uppercase hover:underline">Remover</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Month Selector */}
+                  <div className="flex flex-wrap gap-2 justify-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                    {monthsList.map(m => (
+                      <button
+                        key={m.id}
+                        onClick={() => setSelectedMonth(m.id)}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedMonth === m.id
+                            ? 'bg-indigo-600 text-white shadow-lg scale-110'
+                            : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                          }`}
+                      >
+                        {m.name} ({birthdayCounts[m.id]})
+                      </button>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+
+                  <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="p-8 border-b border-slate-100">
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                        Aniversariantes de {monthsList[selectedMonth].name}
+                      </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                            <th className="px-10 py-5 w-24">Dia</th>
+                            <th className="px-10 py-5 w-32">Imagem</th>
+                            <th className="px-10 py-5">Nome</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {selectedMonthMembers.map((u, index) => (
+                            <tr key={u.id} className={`transition ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                              <td className="px-10 py-5 font-black text-slate-400 text-lg">
+                                {u.birthDate!.split('-')[2]}
+                              </td>
+                              <td className="px-10 py-5">
+                                <img
+                                  src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`}
+                                  className="w-14 h-14 rounded-full border-4 border-white shadow-md object-cover"
+                                />
+                              </td>
+                              <td className="px-10 py-5">
+                                <div className="font-bold text-indigo-900 text-lg tracking-tight">{u.name}</div>
+                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                  {u.phone || 'Sem telefone'}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {selectedMonthMembers.length === 0 && (
+                            <tr>
+                              <td colSpan={3} className="px-10 py-20 text-center text-slate-400 font-medium italic">
+                                Nenhum aniversariante encontrado para este mês.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

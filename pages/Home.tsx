@@ -37,9 +37,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
             >
               Nossas Atividades
             </button>
-            <button className="bg-white/10 backdrop-blur-md border-2 border-white hover:bg-white/20 text-white px-8 py-4 rounded-full text-lg font-bold transition transform hover:scale-105">
-              Conheça Nossa História
-            </button>
+
           </div>
         </div>
       </section>
