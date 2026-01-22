@@ -20,13 +20,11 @@ create table public.profiles (
 -- RLS for Profiles
 alter table public.profiles enable row level security;
 
-create policy "Public profiles are viewable by everyone"
-  on profiles for select
-  using ( true );
-
-create policy "Users can update own profile"
-  on profiles for update
-  using ( auth.uid() = id );
+create policy "profiles_select" on public.profiles for select using (true);
+create policy "profiles_admin_all" on public.profiles for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN'
+);
+create policy "profiles_update_self" on public.profiles for update using (auth.uid() = id);
 
 -- Trigger to create profile on signup
 create or replace function public.handle_new_user()
@@ -38,7 +36,11 @@ begin
     new.email, 
     new.raw_user_meta_data->>'name', 
     coalesce(new.raw_user_meta_data->>'role', 'LEITOR')
-  );
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    name = excluded.name,
+    role = excluded.role;
   return new;
 end;
 $$ language plpgsql security definer;
@@ -60,19 +62,10 @@ create table public.categories (
 -- RLS for Categories
 alter table public.categories enable row level security;
 
-create policy "Categories are viewable by authenticated users"
-  on categories for select
-  to authenticated
-  using ( true );
-
-create policy "Only Admins and Treasurers can insert categories"
-  on categories for insert
-  to authenticated
-  with check ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role in ('ADMIN', 'TESOUREIRO')
-  ));
+create policy "categories_select" on public.categories for select using (true);
+create policy "categories_admin_all" on public.categories for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') in ('ADMIN', 'TESOUREIRO')
+);
 
 -- Initial Categories Seed
 insert into public.categories (name, color) values
@@ -81,7 +74,8 @@ insert into public.categories (name, color) values
   ('Infraestrutura', 'amber'),
   ('Utilidades', 'blue'),
   ('Manutenção', 'rose'),
-  ('Missões', 'teal');
+  ('Missões', 'teal')
+on conflict do nothing;
 
 -- -----------------------------------------------------------------------------
 -- 3. Posts (Blog)
@@ -100,36 +94,10 @@ create table public.posts (
 -- RLS for Posts
 alter table public.posts enable row level security;
 
-create policy "Posts are viewable by everyone"
-  on posts for select
-  using ( true );
-
-create policy "Admins can insert posts"
-  on posts for insert
-  to authenticated
-  with check ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role = 'ADMIN'
-  ));
-
-create policy "Admins can update posts"
-  on posts for update
-  to authenticated
-  using ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role = 'ADMIN'
-  ));
-
-create policy "Admins can delete posts"
-  on posts for delete
-  to authenticated
-  using ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role = 'ADMIN'
-  ));
+create policy "posts_select" on public.posts for select using (true);
+create policy "posts_admin_all" on public.posts for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN'
+);
 
 -- -----------------------------------------------------------------------------
 -- 4. Transactions
@@ -149,41 +117,12 @@ create table public.transactions (
 -- RLS for Transactions
 alter table public.transactions enable row level security;
 
-create policy "Admins and Treasurers can view transactions"
-  on transactions for select
-  to authenticated
-  using ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role in ('ADMIN', 'TESOUREIRO')
-  ));
-
-create policy "Admins and Treasurers can insert transactions"
-  on transactions for insert
-  to authenticated
-  with check ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role in ('ADMIN', 'TESOUREIRO')
-  ));
-
-create policy "Admins and Treasurers can update transactions"
-  on transactions for update
-  to authenticated
-  using ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role in ('ADMIN', 'TESOUREIRO')
-  ));
-
-create policy "Admins and Treasurers can delete transactions"
-  on transactions for delete
-  to authenticated
-  using ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role in ('ADMIN', 'TESOUREIRO')
-  ));
+create policy "finance_admin_select" on public.transactions for select using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') in ('ADMIN', 'TESOUREIRO')
+);
+create policy "finance_admin_all" on public.transactions for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') in ('ADMIN', 'TESOUREIRO')
+);
 
 
 -- -----------------------------------------------------------------------------
@@ -202,26 +141,13 @@ create table public.church_settings (
 -- RLS for Settings
 alter table public.church_settings enable row level security;
 
-create policy "Settings viewable by everyone" 
-  on public.church_settings for select 
-  using (true);
-
-create policy "Settings updateable by Admin" 
-  on public.church_settings for update 
-  using ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role = 'ADMIN'
-  ));
-
-create policy "Settings insertable by Admin" 
-  on public.church_settings for insert 
-  with check ( exists (
-    select 1 from profiles
-    where profiles.id = auth.uid()
-    and profiles.role = 'ADMIN'
-  ));
+create policy "church_settings_select" on public.church_settings for select using (true);
+create policy "church_settings_admin_all" on public.church_settings for all using (
+  (auth.jwt() -> 'user_metadata' ->> 'role') = 'ADMIN'
+);
 
 -- Initial Settings Seed
 insert into public.church_settings (name, address, email) 
-values ('Igreja Conecta', 'Rua da Fé, 123', 'contato@igreja.com');
+values ('Igreja Conecta', 'Rua da Fé, 123', 'contato@igreja.com')
+on conflict do nothing;
+

@@ -38,6 +38,7 @@ export interface Post {
   title: string;
   content: string;
   author: string;
+  authorAvatarUrl?: string;
   date: string;
   imageUrl: string;
   isActive?: boolean;

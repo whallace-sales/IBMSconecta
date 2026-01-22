@@ -117,7 +117,7 @@ const App: React.FC = () => {
         <footer className="bg-slate-900 text-white py-12 px-6">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4">IgrejaConecta</h3>
+              <h3 className="text-xl font-bold mb-4">IBMS - Planaltina-DF</h3>
               <p className="text-slate-400">Levando a palavra e conectando corações em todos os lugares.</p>
             </div>
             <div>
@@ -131,11 +131,11 @@ const App: React.FC = () => {
             <div>
               <h4 className="font-semibold mb-4">Contato</h4>
               <p className="text-slate-400">Rua da Fé, 123 - Centro</p>
-              <p className="text-slate-400">contato@igrejaconecta.com.br</p>
+              <p className="text-slate-400">contato@ibmsplanaltina.com.br</p>
             </div>
           </div>
           <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-slate-800 text-center text-slate-500 text-sm">
-            © 2026 Renovo Tech - Sistema Igrejaconecta. Todos os direitos reservados.
+            © 2026 Renovo Tech - Todos os direitos reservados.
           </div>
         </footer>
       )}

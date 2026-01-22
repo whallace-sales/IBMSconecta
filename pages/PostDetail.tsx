@@ -1,6 +1,7 @@
 
-import React from 'react';
-import { MOCK_POSTS } from '../constants';
+import React, { useEffect, useState } from 'react';
+import { Post } from '../types';
+import { getPost } from '../services/api';
 
 interface PostDetailProps {
   postId: string;
@@ -8,7 +9,20 @@ interface PostDetailProps {
 }
 
 export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
-  const post = MOCK_POSTS.find(p => p.id === postId);
+  const [post, setPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    getPost(postId).then(data => {
+      setPost(data);
+      setLoading(false);
+    });
+  }, [postId]);
+
+  if (loading) {
+    return <div className="text-center py-20 text-slate-500">Carregando detalhes da postagem...</div>;
+  }
 
   if (!post) {
     return (
@@ -37,7 +51,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
       <article className="space-y-8">
         <header className="space-y-4">
           <div className="flex items-center gap-3 text-sm font-medium text-indigo-600">
-            <span>{post.date}</span>
+            <span>{formattedDate}</span>
             <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
             <span>Por {post.author}</span>
           </div>
@@ -52,28 +66,19 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
           {post.content.split('\n').map((paragraph, index) => (
             <p key={index}>{paragraph}</p>
           ))}
-          <p>
-            É com grande alegria que compartilhamos estas atualizações com nossa comunidade.
-            Nossa missão é levar a esperança de Cristo a todos os lugares, e cada atividade relatada aqui
-            é um passo em direção a esse propósito maior.
-          </p>
-          <p>
-            Agradecemos a todos os voluntários, membros e parceiros que tornam possível a realização destes eventos.
-            Sua dedicação é o reflexo do amor de Deus em ação. Se você deseja se envolver ou saber mais sobre como
-            participar, entre em contato conosco através de nossas redes sociais ou diretamente em nossa sede.
-          </p>
-          <p className="font-bold italic text-indigo-900">
-            "Pois onde dois ou três estiverem reunidos em meu nome, ali estou eu no meio deles." - Mateus 18:20
-          </p>
         </div>
 
         <footer className="pt-12 border-t border-gray-100">
           <div className="bg-indigo-50 p-8 rounded-[32px] flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <img src={`https://i.pravatar.cc/100?u=${post.author}`} className="w-16 h-16 rounded-full border-4 border-white shadow-sm" alt={post.author} />
+              <img
+                src={post.authorAvatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author)}&background=random`}
+                className="w-16 h-16 rounded-full border-4 border-white shadow-sm object-cover"
+                alt={post.author}
+              />
               <div>
                 <p className="font-bold text-gray-900">Escrito por {post.author}</p>
-                <p className="text-sm text-gray-500">Membro da Equipe de Comunicação da IgrejaConecta</p>
+                <p className="text-sm text-gray-500">Membro da Equipe de Comunicação da IBMS - Planaltina-DF</p>
               </div>
             </div>
             <div className="bg-white/50 px-6 py-3 rounded-2xl border border-indigo-100 flex flex-col items-center md:items-end">

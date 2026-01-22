@@ -31,7 +31,7 @@ export const getProfile = async (userId: string): Promise<User | null> => {
 export const getPosts = async (): Promise<Post[]> => {
     const { data, error } = await supabase
         .from('posts')
-        .select('*')
+        .select('*, profiles(name, avatar_url)')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -44,11 +44,36 @@ export const getPosts = async (): Promise<Post[]> => {
         id: post.id,
         title: post.title,
         content: post.content,
-        author: 'Equipe Igreja', // Idealmente faria um join com profiles
+        author: post.profiles?.name || 'Equipe Igreja',
+        authorAvatarUrl: post.profiles?.avatar_url,
         date: post.date,
         imageUrl: post.image_url,
         isActive: post.is_active
     }));
+};
+
+export const getPost = async (id: string): Promise<Post | null> => {
+    const { data, error } = await supabase
+        .from('posts')
+        .select('*, profiles(name, avatar_url)')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching post:', error);
+        return null;
+    }
+
+    return {
+        id: data.id,
+        title: data.title,
+        content: data.content,
+        author: data.profiles?.name || 'Equipe Igreja',
+        authorAvatarUrl: data.profiles?.avatar_url,
+        date: data.date,
+        imageUrl: data.image_url,
+        isActive: data.is_active
+    };
 };
 
 // --- Transactions ---
