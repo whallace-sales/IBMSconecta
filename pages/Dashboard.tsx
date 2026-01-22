@@ -1002,8 +1002,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       </aside>
 
       <main className="flex-grow flex flex-col print:p-0">
-        <header className="h-24 bg-white border-b border-slate-200 px-10 flex items-center justify-between sticky top-0 z-10 print:hidden">
-          <h2 className="text-2xl font-black text-slate-900">{tabTitles[activeTab]}</h2>
+        <header className="h-16 md:h-24 bg-white border-b border-slate-200 px-4 md:px-10 flex items-center justify-between sticky top-0 z-10 print:hidden">
+          <h2 className="text-lg md:text-2xl font-black text-slate-900">{tabTitles[activeTab]}</h2>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="font-bold text-slate-900 leading-tight">{user.name}</p>
@@ -1013,79 +1013,160 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </div>
         </header>
 
-        <div className="p-10 print:p-0">
+        <div className="p-4 md:p-10 print:p-0">
           {activeTab === 'overview' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
+            <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500">
               {/* Demographics Row */}
-              <div className="bg-white p-5 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-around gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="bg-teal-50 w-12 h-12 rounded-xl flex items-center justify-center text-teal-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-around gap-4 md:gap-6">
+                <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
+                  <div className="bg-teal-50 w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center text-teal-600">
+                    <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-2xl font-black text-slate-800 tracking-tight">{demographics.total}</h5>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de pessoas</p>
+                    <h5 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.total}</h5>
+                    <p className="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de pessoas</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="bg-sky-50 w-12 h-12 rounded-xl flex items-center justify-center text-sky-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
+                  <div className="bg-sky-50 w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center text-sky-600">
+                    <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-2xl font-black text-slate-800 tracking-tight">{demographics.menPercent}% <span className="text-slate-400 text-xs font-medium">({demographics.men})</span></h5>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de homens</p>
+                    <h5 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.menPercent}% <span className="text-slate-400 text-xs font-medium">({demographics.men})</span></h5>
+                    <p className="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de homens</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="bg-pink-50 w-12 h-12 rounded-xl flex items-center justify-center text-pink-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
+                  <div className="bg-pink-50 w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center text-pink-600">
+                    <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-2xl font-black text-slate-800 tracking-tight">{demographics.womenPercent}% <span className="text-slate-400 text-xs font-medium">({demographics.women})</span></h5>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de mulheres</p>
+                    <h5 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.womenPercent}% <span className="text-slate-400 text-xs font-medium">({demographics.women})</span></h5>
+                    <p className="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de mulheres</p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-4 bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 flex flex-col">
-                  <h4 className="text-slate-900 font-bold mb-6">Receitas vs Despesas</h4>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: 'Entradas', value: globalStats.income, color: '#10B981' },
-                            { name: 'Saídas', value: globalStats.expense, color: '#EF4444' }
-                          ]}
-                          innerRadius={70} outerRadius={90} paddingAngle={5} dataKey="value"
-                        >
-                          <Cell fill="#10B981" /><Cell fill="#EF4444" />
-                        </Pie>
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                      </PieChart>
-                    </ResponsiveContainer>
+              {/* Grid com Financeiro e Agenda */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+                {/* Coluna Esquerda - Financeiro */}
+                <div className="lg:col-span-7 space-y-6 md:space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
+                      <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest mb-1">Total Entradas</p>
+                      <p className="text-2xl md:text-3xl font-black text-emerald-600">{formatCurrency(globalStats.income)}</p>
+                    </div>
+                    <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
+                      <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest mb-1">Total Saídas</p>
+                      <p className="text-2xl md:text-3xl font-black text-red-600">{formatCurrency(globalStats.expense)}</p>
+                    </div>
+                  </div>
+                  <div className="bg-indigo-600 p-6 md:p-8 rounded-2xl md:rounded-[32px] text-white shadow-lg">
+                    <p className="text-indigo-200 font-bold text-[9px] md:text-[10px] uppercase tracking-widest mb-1">Saldo em Caixa</p>
+                    <p className="text-3xl md:text-5xl font-black">{formatCurrency(globalStats.income - globalStats.expense)}</p>
+                  </div>
+
+                  {/* Gráfico de Pizza */}
+                  <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100">
+                    <h4 className="text-slate-900 font-bold mb-6">Receitas vs Despesas</h4>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'Entradas', value: globalStats.income, color: '#10B981' },
+                              { name: 'Saídas', value: globalStats.expense, color: '#EF4444' }
+                            ]}
+                            innerRadius={70} outerRadius={90} paddingAngle={5} dataKey="value"
+                          >
+                            <Cell fill="#10B981" /><Cell fill="#EF4444" />
+                          </Pie>
+                          <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
-                <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">Total Entradas</p>
-                    <p className="text-3xl font-black text-emerald-600">{formatCurrency(globalStats.income)}</p>
-                  </div>
-                  <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1">Total Saídas</p>
-                    <p className="text-3xl font-black text-red-600">{formatCurrency(globalStats.expense)}</p>
-                  </div>
-                  <div className="bg-indigo-600 p-8 rounded-[32px] text-white md:col-span-2 shadow-lg">
-                    <p className="text-indigo-200 font-bold text-[10px] uppercase tracking-widest mb-1">Saldo em Caixa</p>
-                    <p className="text-5xl font-black">{formatCurrency(globalStats.income - globalStats.expense)}</p>
+
+                {/* Coluna Direita - Agenda do Mês */}
+                <div className="lg:col-span-5">
+                  <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm lg:sticky lg:top-24">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-sky-100 p-2 rounded-xl text-sky-600">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      </div>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Agenda do Mês</h3>
+                    </div>
+
+                    <div className="space-y-3 max-h-[400px] md:max-h-[600px] overflow-y-auto">
+                      {(() => {
+                        const currentMonth = new Date().getMonth();
+                        const currentYear = new Date().getFullYear();
+                        const monthEvents = events.filter(e => {
+                          const eventDate = new Date(e.startDate);
+                          return eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear;
+                        }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+                        if (monthEvents.length === 0) {
+                          return (
+                            <div className="p-10 text-center bg-slate-50 rounded-2xl">
+                              <p className="text-slate-400 italic font-medium">Nenhum evento agendado para este mês.</p>
+                            </div>
+                          );
+                        }
+
+                        return monthEvents.map(event => {
+                          const eventCat = eventCategories.find(c => c.id === event.categoryId);
+                          const eventDate = new Date(event.startDate);
+                          const day = eventDate.getDate();
+                          const month = eventDate.toLocaleDateString('pt-BR', { month: 'short' });
+
+                          return (
+                            <div key={event.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:shadow-md transition group">
+                              <div className="flex gap-4">
+                                <div className="flex flex-col items-center justify-center bg-white rounded-xl p-3 min-w-[60px] shadow-sm">
+                                  <span className="text-2xl font-black text-slate-800">{day}</span>
+                                  <span className="text-[9px] font-black text-slate-400 uppercase">{month}</span>
+                                </div>
+                                <div className="flex-grow">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h4 className="font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition">{event.title}</h4>
+                                    {eventCat && (
+                                      <div
+                                        className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
+                                        style={{ backgroundColor: eventCat.color }}
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-500">
+                                    {event.startTime && (
+                                      <span className="flex items-center gap-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        {event.startTime}
+                                      </span>
+                                    )}
+                                    {event.location && (
+                                      <span className="flex items-center gap-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                        {event.location}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+              {/* Aniversariantes do Mês */}
+              <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="bg-pink-100 p-2 rounded-xl text-pink-600">
                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.464 15.05a1 1 0 010 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 0z" /></svg>
