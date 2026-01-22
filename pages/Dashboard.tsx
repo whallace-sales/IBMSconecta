@@ -154,6 +154,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [deptMemberUserId, setDeptMemberUserId] = useState('');
   const [deptMemberRoles, setDeptMemberRoles] = useState<string[]>([]);
 
+  // Estado do Menu Mobile
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   // Filtros de Relatório
   const initialFilters = {
     startDate: '',
@@ -1001,9 +1004,70 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
       </aside>
 
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
+      {/* Mobile Sidebar */}
+      <aside className={`fixed top-0 left-0 h-full w-80 bg-white border-r border-slate-200 flex flex-col z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {churchInfo.logoUrl ? (
+              <img src={churchInfo.logoUrl} className="w-10 h-10 rounded-xl object-cover border border-slate-100" alt="Logo" />
+            ) : (
+              <div className="bg-indigo-600 p-2 rounded-xl text-white">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+              </div>
+            )}
+            <span className="font-bold text-lg text-slate-900 tracking-tight truncate">{churchInfo.name}</span>
+          </div>
+          <button
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="p-2 hover:bg-slate-100 rounded-lg transition"
+          >
+            <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <nav className="flex-grow pt-4 overflow-y-auto">
+          <div onClick={() => setIsMobileSidebarOpen(false)}>
+            <SidebarItem id="overview" label="Início" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
+            <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+            <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
+            <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
+            <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
+            <SidebarItem id="agenda" label="Agenda" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+            <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
+            <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+          </div>
+        </nav>
+
+        <div className="p-6 border-t border-slate-100">
+          <button onClick={onLogout} className="w-full text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            Sair do Painel
+          </button>
+        </div>
+      </aside>
+
       <main className="flex-grow flex flex-col print:p-0">
         <header className="h-16 md:h-24 bg-white border-b border-slate-200 px-4 md:px-10 flex items-center justify-between sticky top-0 z-10 print:hidden">
-          <h2 className="text-lg md:text-2xl font-black text-slate-900">{tabTitles[activeTab]}</h2>
+          <div className="flex items-center gap-4">
+            {/* Hamburger Menu Button - Mobile Only */}
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden p-2 hover:bg-slate-100 rounded-lg transition"
+            >
+              <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <h2 className="text-lg md:text-2xl font-black text-slate-900">{tabTitles[activeTab]}</h2>
+          </div>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="font-bold text-slate-900 leading-tight">{user.name}</p>
