@@ -1087,8 +1087,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.total}</h5>
-                    <p className="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de pessoas</p>
+                    <h5 className="text-2xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.total}</h5>
+                    <p className="text-[10px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de pessoas</p>
                   </div>
                 </div>
 
@@ -1097,8 +1097,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.menPercent}% <span className="text-slate-400 text-xs font-medium">({demographics.men})</span></h5>
-                    <p className="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de homens</p>
+                    <h5 className="text-2xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.menPercent}% <span className="text-slate-400 text-sm font-medium">({demographics.men})</span></h5>
+                    <p className="text-[10px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de homens</p>
                   </div>
                 </div>
 
@@ -1107,8 +1107,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.womenPercent}% <span className="text-slate-400 text-xs font-medium">({demographics.women})</span></h5>
-                    <p className="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de mulheres</p>
+                    <h5 className="text-2xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.womenPercent}% <span className="text-slate-400 text-sm font-medium">({demographics.women})</span></h5>
+                    <p className="text-[10px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de mulheres</p>
                   </div>
                 </div>
               </div>
@@ -1118,23 +1118,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 {/* Coluna Esquerda - Financeiro */}
                 <div className="lg:col-span-7 space-y-6 md:space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                    <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
-                      <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest mb-1">Total Entradas</p>
-                      <p className="text-2xl md:text-3xl font-black text-emerald-600">{formatCurrency(globalStats.income)}</p>
+                    <div className="bg-white p-8 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
+                      <p className="text-[11px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">Total Entradas</p>
+                      <p className="text-3xl md:text-3xl font-black text-emerald-600">{formatCurrency(globalStats.income)}</p>
                     </div>
-                    <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
-                      <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest mb-1">Total Saídas</p>
-                      <p className="text-2xl md:text-3xl font-black text-red-600">{formatCurrency(globalStats.expense)}</p>
+                    <div className="bg-white p-8 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
+                      <p className="text-[11px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">Total Saídas</p>
+                      <p className="text-3xl md:text-3xl font-black text-red-600">{formatCurrency(globalStats.expense)}</p>
                     </div>
                   </div>
-                  <div className="bg-indigo-600 p-6 md:p-8 rounded-2xl md:rounded-[32px] text-white shadow-lg">
-                    <p className="text-indigo-200 font-bold text-[9px] md:text-[10px] uppercase tracking-widest mb-1">Saldo em Caixa</p>
-                    <p className="text-3xl md:text-5xl font-black">{formatCurrency(globalStats.income - globalStats.expense)}</p>
+                  <div className="bg-indigo-600 p-8 md:p-8 rounded-2xl md:rounded-[32px] text-white shadow-lg">
+                    <p className="text-indigo-200 font-bold text-[11px] md:text-[10px] uppercase tracking-widest mb-2">Saldo em Caixa</p>
+                    <p className="text-4xl md:text-5xl font-black">{formatCurrency(globalStats.income - globalStats.expense)}</p>
                   </div>
 
                   {/* Gráfico de Pizza */}
-                  <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100">
-                    <h4 className="text-slate-900 font-bold mb-6">Receitas vs Despesas</h4>
+                  <div className="bg-white p-8 md:p-8 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100">
+                    <h4 className="text-slate-900 font-bold mb-6 text-base md:text-base">Receitas vs Despesas</h4>
                     <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -1156,12 +1156,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
                 {/* Coluna Direita - Agenda do Mês */}
                 <div className="lg:col-span-5">
-                  <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm lg:sticky lg:top-24">
+                  <div className="bg-white p-8 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm lg:sticky lg:top-24">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="bg-sky-100 p-2 rounded-xl text-sky-600">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </div>
-                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Agenda do Mês</h3>
+                      <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Agenda do Mês</h3>
                     </div>
 
                     <div className="space-y-3 max-h-[400px] md:max-h-[600px] overflow-y-auto">
@@ -1188,15 +1188,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           const month = eventDate.toLocaleDateString('pt-BR', { month: 'short' });
 
                           return (
-                            <div key={event.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:shadow-md transition group">
+                            <div key={event.id} className="bg-slate-50 p-5 md:p-4 rounded-2xl border border-slate-100 hover:shadow-md transition group">
                               <div className="flex gap-4">
-                                <div className="flex flex-col items-center justify-center bg-white rounded-xl p-3 min-w-[60px] shadow-sm">
-                                  <span className="text-2xl font-black text-slate-800">{day}</span>
-                                  <span className="text-[9px] font-black text-slate-400 uppercase">{month}</span>
+                                <div className="flex flex-col items-center justify-center bg-white rounded-xl p-3 min-w-[70px] md:min-w-[60px] shadow-sm">
+                                  <span className="text-3xl md:text-2xl font-black text-slate-800">{day}</span>
+                                  <span className="text-[10px] md:text-[9px] font-black text-slate-400 uppercase">{month}</span>
                                 </div>
                                 <div className="flex-grow">
                                   <div className="flex items-start justify-between gap-2">
-                                    <h4 className="font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition">{event.title}</h4>
+                                    <h4 className="font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition text-base md:text-sm">{event.title}</h4>
                                     {eventCat && (
                                       <div
                                         className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
@@ -1204,7 +1204,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                                       />
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-500">
+                                  <div className="flex items-center gap-3 mt-2 text-[11px] md:text-[10px] text-slate-500">
                                     {event.startTime && (
                                       <span className="flex items-center gap-1">
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -1230,12 +1230,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               </div>
 
               {/* Aniversariantes do Mês */}
-              <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
+              <div className="bg-white p-8 md:p-8 rounded-2xl md:rounded-[32px] border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="bg-pink-100 p-2 rounded-xl text-pink-600">
                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.464 15.05a1 1 0 010 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 0z" /></svg>
                   </div>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Aniversariantes do Mês</h3>
+                  <h3 className="text-lg md:text-xl font-black text-slate-800 tracking-tight">Aniversariantes do Mês</h3>
                 </div>
                 {birthdayMembers.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
