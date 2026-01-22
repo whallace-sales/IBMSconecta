@@ -55,7 +55,7 @@ const createCroppedImage = (imageSrc: string, scale: number, position: { x: numb
 export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'finances' | 'posts' | 'members' | 'reports' | 'settings'>('overview');
   const [financeSubTab, setFinanceSubTab] = useState<'transactions' | 'categories'>('transactions');
-  const [memberSubTab, setMemberSubTab] = useState<'list' | 'birthdays'>('list');
+  const [memberSubTab, setMemberSubTab] = useState<'list' | 'birthdays' | 'stats'>('list');
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
 
   const monthsList = [
@@ -118,6 +118,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [reportFilters, setReportFilters] = useState(initialFilters);
 
   // Formatação de Moeda
+  const calculateAge = (birthDate: string) => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   const formatCurrency = (value: number) => {
     return `R$ ${value.toLocaleString('pt-BR', {
       minimumFractionDigits: 2,
@@ -158,6 +169,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       return dayA - dayB;
     });
   }, [allUsers, selectedMonth]);
+
+  const demographicsData = useMemo(() => {
+    const stats = { kids: 0, teens: 0, youth: 0, adults: 0, seniors: 0 };
+
+    allUsers.forEach(u => {
+      if (!u.birthDate) return;
+      const age = calculateAge(u.birthDate);
+      if (age <= 12) stats.kids++;
+      else if (age <= 17) stats.teens++;
+      else if (age <= 29) stats.youth++;
+      else if (age <= 59) stats.adults++;
+      else stats.seniors++;
+    });
+
+    return [
+      { name: 'Crianças', value: stats.kids, color: '#4ADE80', range: '0-12 anos' },
+      { name: 'Adolescentes', value: stats.teens, color: '#86EFAC', range: '13-17 anos' },
+      { name: 'Jovens', value: stats.youth, color: '#F59E0B', range: '18-29 anos' },
+      { name: 'Adultos', value: stats.adults, color: '#FCD34D', range: '30-59 anos' },
+      { name: 'Idosos', value: stats.seniors, color: '#0EA5E9', range: '60+ anos' }
+    ];
+  }, [allUsers]);
 
   const fetchData = async () => {
     try {
@@ -737,9 +770,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 >
                   Aniversariantes
                 </button>
+                <button
+                  onClick={() => setMemberSubTab('stats')}
+                  className={`pb-4 px-2 font-black text-xs uppercase tracking-widest transition ${memberSubTab === 'stats' ? 'text-indigo-600 border-b-4 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Demografia
+                </button>
               </div>
 
-              {memberSubTab === 'list' ? (
+              {memberSubTab === 'list' && (
                 <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
                   <div className="p-8 border-b border-slate-100 flex justify-between items-center">
                     <h3 className="text-xl font-black text-slate-900 tracking-tight">Gerenciar Membros</h3>
@@ -790,7 +829,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </table>
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {memberSubTab === 'birthdays' && (
                 <div className="space-y-8">
                   {/* Month Selector */}
                   <div className="flex flex-wrap gap-2 justify-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
@@ -799,8 +840,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         key={m.id}
                         onClick={() => setSelectedMonth(m.id)}
                         className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedMonth === m.id
-                            ? 'bg-indigo-600 text-white shadow-lg scale-110'
-                            : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                          ? 'bg-indigo-600 text-white shadow-lg scale-110'
+                          : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                           }`}
                       >
                         {m.name} ({birthdayCounts[m.id]})
@@ -853,6 +894,81 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {memberSubTab === 'stats' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-sm">
+                    <div className="flex flex-col items-center">
+                      <div className="h-[300px] w-full max-w-[500px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={demographicsData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {demographicsData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="flex flex-wrap justify-center gap-6 mt-4">
+                        {demographicsData.map((item, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                          <th className="px-10 py-5">Tipo</th>
+                          <th className="px-10 py-5 text-center">Pessoas</th>
+                          <th className="px-10 py-5 text-center">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {demographicsData.map((item, index) => (
+                          <tr key={index} className="hover:bg-slate-50 transition group">
+                            <td className="px-10 py-6">
+                              <div className="flex items-center gap-4">
+                                <span className="font-bold text-slate-900 text-lg tracking-tight">{item.name}</span>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">{item.range}</span>
+                              </div>
+                            </td>
+                            <td className="px-10 py-6 text-center">
+                              <span className="text-xl font-black text-indigo-600">{item.value}</span>
+                            </td>
+                            <td className="px-10 py-6 text-center">
+                              <button onClick={() => setMemberSubTab('list')} className="bg-indigo-50 text-indigo-700 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition">Ver Pessoas</button>
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-slate-900/5">
+                          <td className="px-10 py-6 font-black text-slate-900 text-lg uppercase tracking-tight">Total Geral</td>
+                          <td className="px-10 py-6 text-center font-black text-2xl text-slate-900">{allUsers.length}</td>
+                          <td></td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
