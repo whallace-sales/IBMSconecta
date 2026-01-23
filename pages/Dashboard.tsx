@@ -974,7 +974,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex print:bg-white">
+    <div className="min-h-screen bg-slate-50 flex print:bg-white text-slate-900 overflow-x-hidden">
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-slide-up {
+          animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.4s ease-out forwards;
+        }
+        .safe-area-bottom {
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+        ::-webkit-scrollbar {
+          width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
+      `}</style>
       {/* Sidebar */}
       <aside className="w-72 bg-white border-r border-slate-200 flex flex-col hidden lg:flex print:hidden">
         <div className="p-8 border-b border-slate-100 flex items-center gap-3">
@@ -1055,7 +1087,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       </aside>
 
       <main className="flex-grow flex flex-col print:p-0">
-        <header className="h-16 md:h-24 bg-white border-b border-slate-200 px-4 md:px-10 flex items-center justify-between sticky top-0 z-10 print:hidden">
+        <header className="h-16 md:h-24 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 md:px-10 flex items-center justify-between sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-4">
             {/* Hamburger Menu Button - Mobile Only */}
             <button
@@ -1077,9 +1109,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </div>
         </header>
 
-        <div className="p-4 md:p-10 print:p-0">
+        <div className="p-4 pb-24 md:p-10 print:p-0">
           {activeTab === 'overview' && (
-            <div className="space-y-8 md:space-y-10 animate-in fade-in duration-500">
+            <div className="space-y-8 md:space-y-10 animate-slide-up">
               {/* Demographics Row */}
               <div className="bg-white p-6 md:p-5 rounded-3xl md:rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-around gap-6 md:gap-6">
                 <div className="flex items-center gap-4 md:gap-4 w-full md:w-auto">
@@ -1118,18 +1150,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 {/* Coluna Esquerda - Financeiro */}
                 <div className="lg:col-span-7 space-y-6 md:space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                    <div className="bg-white p-6 md:p-8 rounded-3xl md:rounded-[32px] border border-slate-100 shadow-sm">
-                      <p className="text-xs md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3 md:mb-2">Total Entradas</p>
-                      <p className="text-4xl md:text-3xl font-black text-emerald-600">{formatCurrency(globalStats.income)}</p>
+                    <div className="bg-white p-7 md:p-8 rounded-3xl md:rounded-[32px] border-t-8 border-emerald-500 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-lg transition-shadow duration-300">
+                      <p className="text-xs md:text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em] mb-3 md:mb-2">Total Entradas</p>
+                      <p className="text-4xl md:text-3xl font-black text-emerald-600 tracking-tight">{formatCurrency(globalStats.income)}</p>
                     </div>
-                    <div className="bg-white p-6 md:p-8 rounded-3xl md:rounded-[32px] border border-slate-100 shadow-sm">
-                      <p className="text-xs md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3 md:mb-2">Total Saídas</p>
-                      <p className="text-4xl md:text-3xl font-black text-red-600">{formatCurrency(globalStats.expense)}</p>
+                    <div className="bg-white p-7 md:p-8 rounded-3xl md:rounded-[32px] border-t-8 border-red-500 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-lg transition-shadow duration-300">
+                      <p className="text-xs md:text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em] mb-3 md:mb-2">Total Saídas</p>
+                      <p className="text-4xl md:text-3xl font-black text-red-600 tracking-tight">{formatCurrency(globalStats.expense)}</p>
                     </div>
                   </div>
-                  <div className="bg-indigo-600 p-6 md:p-8 rounded-3xl md:rounded-[32px] text-white shadow-lg">
-                    <p className="text-indigo-200 font-bold text-xs md:text-[10px] uppercase tracking-widest mb-3 md:mb-2">Saldo em Caixa</p>
-                    <p className="text-5xl md:text-5xl font-black">{formatCurrency(globalStats.income - globalStats.expense)}</p>
+                  <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-8 md:p-10 rounded-[40px] text-white shadow-[0_20px_40px_rgba(79,70,229,0.3)] relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700"></div>
+                    <div className="relative z-10">
+                      <p className="text-indigo-200 font-bold text-xs md:text-[10px] uppercase tracking-[0.2em] mb-3 md:mb-2">Saldo em Caixa Disponível</p>
+                      <p className="text-5xl md:text-6xl font-black tracking-tighter">{formatCurrency(globalStats.income - globalStats.expense)}</p>
+                    </div>
                   </div>
 
                   {/* Gráfico de Pizza */}
@@ -1188,11 +1223,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           const month = eventDate.toLocaleDateString('pt-BR', { month: 'short' });
 
                           return (
-                            <div key={event.id} className="bg-slate-50 p-6 md:p-4 rounded-3xl md:rounded-2xl border border-slate-100 hover:shadow-md transition group">
-                              <div className="flex gap-4">
-                                <div className="flex flex-col items-center justify-center bg-white rounded-2xl p-4 min-w-[80px] md:min-w-[60px] shadow-sm">
-                                  <span className="text-4xl md:text-2xl font-black text-slate-800">{day}</span>
-                                  <span className="text-xs md:text-[9px] font-black text-slate-400 uppercase">{month}</span>
+                            <div key={event.id} onClick={() => { setEditingEvent(event); setIsEventModalOpen(true); }} className="bg-white p-6 md:p-4 rounded-[32px] md:rounded-2xl border border-slate-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-50 transition-all duration-300 group cursor-pointer">
+                              <div className="flex gap-4 md:gap-5">
+                                <div className="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 min-w-[85px] md:min-w-[65px] border border-slate-100 relative overflow-hidden">
+                                  <div className="absolute top-0 left-0 w-full h-1.5" style={{ backgroundColor: eventCat?.color || '#6366f1' }}></div>
+                                  <span className="text-4xl md:text-2xl font-black text-slate-800 tracking-tighter">{day}</span>
+                                  <span className="text-xs md:text-[9px] font-black text-indigo-500 uppercase tracking-widest">{month}</span>
                                 </div>
                                 <div className="flex-grow">
                                   <div className="flex items-start justify-between gap-2">
@@ -1257,7 +1293,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'finances' && (
-            <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
+            <div className="space-y-8 animate-slide-up">
               <div className="flex gap-6 border-b border-slate-200">
                 <button onClick={() => setFinanceSubTab('transactions')} className={`pb-4 px-2 font-black text-xs uppercase tracking-widest transition ${financeSubTab === 'transactions' ? 'text-indigo-600 border-b-4 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Livro Caixa</button>
                 <button onClick={() => setFinanceSubTab('categories')} className={`pb-4 px-2 font-black text-xs uppercase tracking-widest transition ${financeSubTab === 'categories' ? 'text-indigo-600 border-b-4 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>Categorias</button>
@@ -1555,7 +1591,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'members' && (
-            <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
+            <div className="space-y-8 animate-slide-up">
               <div className="flex gap-6 border-b border-slate-200">
                 <button
                   onClick={() => setMemberSubTab('list')}
@@ -1698,7 +1734,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               )}
 
               {memberSubTab === 'stats' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-8 animate-slide-up">
                   <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-sm">
                     <div className="flex flex-col items-center">
                       <div className="h-[300px] w-full max-w-[500px]">
@@ -1775,7 +1811,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'reports' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="space-y-8 animate-slide-up">
               <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 print:hidden">
                 <div className="flex justify-between items-center mb-10"><h3 className="text-xl font-black text-slate-900 tracking-tight">Filtros Avançados</h3><button onClick={() => window.print()} className="bg-indigo-600 text-white px-8 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg">Imprimir Relatório</button></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -1795,7 +1831,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'posts' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="space-y-8 animate-slide-up">
               <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-slate-900 tracking-tight">Conteúdo Web</h3><button onClick={() => { setEditingPost(null); setIsPostModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition">+ Novo Conteúdo</button></div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {posts.map(post => (
@@ -1823,7 +1859,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'agenda' && (
-            <div className="animate-in fade-in slide-in-from-bottom duration-500">
+            <div className="animate-slide-up">
               <div className="flex flex-col lg:flex-row gap-8">
                 {/* Calendar Main Area */}
                 <div className="flex-grow bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
@@ -1972,7 +2008,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'departamentos' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="space-y-8 animate-slide-up">
               {deptView === 'list' && (
                 <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
                   <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
@@ -2116,7 +2152,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               )}
 
               {deptView === 'editor' && (
-                <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden animate-in slide-in-from-right duration-500">
+                <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden animate-slide-up">
                   {/* Banner / Header */}
                   <div className="relative h-64 bg-slate-100 group">
                     {deptBannerUrl ? (
@@ -2252,7 +2288,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               )}
 
               {deptView === 'details' && selectedDept && (
-                <div className="flex flex-col lg:flex-row gap-8 animate-in fade-in duration-500">
+                <div className="flex flex-col lg:flex-row gap-8 animate-slide-up">
                   {/* Left Sidebar - Dept List */}
                   <div className="w-full lg:w-80 shrink-0 space-y-4">
                     <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
@@ -2386,7 +2422,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'settings' && user.role === UserRole.ADMIN && (
-            <div className="animate-in slide-in-from-right duration-500 max-w-2xl">
+            <div className="animate-slide-up max-w-2xl">
               <div className="bg-white p-12 rounded-[48px] border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-4 mb-10">
                   <div className="bg-slate-900 p-3 rounded-2xl text-white">
@@ -3016,6 +3052,108 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </div>
         </div>
       )}
+
+      {/* Floating Action Button - Mobile Only */}
+      {['overview', 'finances', 'members', 'agenda'].includes(activeTab) && (
+        <div className="lg:hidden fixed bottom-32 right-8 z-40">
+          {activeTab === 'members' && user.role === UserRole.ADMIN && (
+            <button
+              onClick={() => { setEditingMember(null); setIsMemberModalOpen(true); }}
+              className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
+              title="Novo Membro"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+            </button>
+          )}
+          {(activeTab === 'overview' || activeTab === 'finances') && (user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
+            <button
+              onClick={() => { setEditingTx(null); setIsTxModalOpen(true); }}
+              className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
+              title="Nova Transação"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </button>
+          )}
+          {activeTab === 'agenda' && (
+            <button
+              onClick={() => { setEditingEvent(null); setIsEventModalOpen(true); }}
+              className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
+              title="Novo Evento"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Navigation - Mobile Only */}
+      <nav className="lg:hidden fixed bottom-6 left-6 right-6 bg-white/80 backdrop-blur-xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[32px] z-40 print:hidden safe-area-bottom px-2 h-20">
+        <div className="grid grid-cols-5 h-full items-center">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'overview' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            {activeTab === 'overview' && <div className="absolute -top-1 w-1 h-1 bg-indigo-600 rounded-full" />}
+            <svg className={`w-6 h-6 ${activeTab === 'overview' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Início</span>
+          </button>
+
+          {(user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
+            <button
+              onClick={() => setActiveTab('finances')}
+              className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'finances' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {activeTab === 'finances' && <div className="absolute -top-1 w-1 h-1 bg-indigo-600 rounded-full" />}
+              <svg className={`w-6 h-6 ${activeTab === 'finances' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Finanças</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setActiveTab('agenda')}
+            className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'agenda' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            {activeTab === 'agenda' && <div className="absolute -top-1 w-1 h-1 bg-indigo-600 rounded-full" />}
+            <svg className={`w-6 h-6 ${activeTab === 'agenda' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Agenda</span>
+          </button>
+
+          {user.role === UserRole.ADMIN && (
+            <button
+              onClick={() => setActiveTab('members')}
+              className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'members' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {activeTab === 'members' && <div className="absolute -top-1 w-1 h-1 bg-indigo-600 rounded-full" />}
+              <svg className={`w-6 h-6 ${activeTab === 'members' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Membros</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-all duration-300"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Menu</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 };
