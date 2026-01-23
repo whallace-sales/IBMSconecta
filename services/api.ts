@@ -21,9 +21,28 @@ export const getProfile = async (userId: string): Promise<User | null> => {
             role: data.role as UserRole,
             birthDate: data.birth_date,
             address: data.address,
+            cep: data.cep,
+            city: data.city,
+            neighborhood: data.neighborhood,
+            state: data.state,
+            maritalStatus: data.marital_status,
+            education: data.education,
+            spouseName: data.spouse_name,
+            conversionDate: data.conversion_date,
+            baptismDate: data.baptism_date,
+            isBaptized: data.is_baptized,
+            notes: data.notes,
             phone: data.phone,
+            phone2: data.phone2,
+            doc1: data.doc1,
+            doc2: data.doc2,
+            addressNumber: data.address_number,
+            country: data.country,
+            categories: data.categories,
+            cargos: data.cargos,
             avatarUrl: data.avatar_url,
             gender: data.gender,
+            createdAt: data.created_at,
         };
     } catch (error) {
         console.error('Error fetching profile:', error);
@@ -110,7 +129,8 @@ export const getTransactions = async (): Promise<Transaction[]> => {
             paymentType: t.payment_type,
             docNumber: t.doc_number,
             competence: t.competence,
-            notes: t.notes
+            notes: t.notes,
+            attachmentUrls: t.attachment_urls
         }));
     } catch (error) {
         console.error('Error fetching transactions:', error);

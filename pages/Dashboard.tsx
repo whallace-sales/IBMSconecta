@@ -135,6 +135,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [editingMember, setEditingMember] = useState<User | null>(null);
+  const [viewingMember, setViewingMember] = useState<User | null>(null);
+  const [viewingMemberSubTab, setViewingMemberSubTab] = useState<'info' | 'finances' | 'edit'>('info');
   const [editingPost, setEditingPost] = useState<Post | null>(null);
 
   // Estados para Ajuste de Avatar
@@ -156,6 +158,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   // Estado de Submissão Global
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Estados de Arquivos para Lançamentos
+  const [txFiles, setTxFiles] = useState<File[]>([]);
+  const [attachedUrls, setAttachedUrls] = useState<string[]>([]);
+  const txFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -234,6 +241,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setPostContent('');
     }
   }, [editingPost]);
+
+  useEffect(() => {
+    if (editingTx) {
+      setAttachedUrls(editingTx.attachmentUrls || []);
+    } else {
+      setAttachedUrls([]);
+    }
+    setTxFiles([]);
+  }, [editingTx]);
 
   const quillModules = {
     toolbar: [
@@ -383,8 +399,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           birthDate: p.birth_date,
           address: p.address,
           phone: p.phone,
+          phone2: p.phone2,
+
+          addressNumber: p.address_number,
+          country: p.country,
+          categories: p.categories,
+          cargos: p.cargos,
           avatarUrl: p.avatar_url,
           gender: p.gender,
+          maritalStatus: p.marital_status,
+          education: p.education,
+          spouseName: p.spouse_name,
+          conversionDate: p.conversion_date,
+          baptismDate: p.baptism_date,
+          isBaptized: p.is_baptized,
+          notes: p.notes,
+          neighborhood: p.neighborhood,
+          city: p.city,
+          state: p.state,
+          cep: p.cep,
+          createdAt: p.created_at,
         }));
         setAllUsers(mappedUsers);
       }
@@ -466,6 +500,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       return;
     }
 
+    // Upload de Arquivos se houver
+    let fileUrls = [...attachedUrls];
+    if (txFiles.length > 0) {
+      try {
+        for (const file of txFiles) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+          const filePath = `transactions/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+          if (uploadError) throw uploadError;
+          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          fileUrls.push(publicUrl);
+        }
+      } catch (err: any) {
+        console.error('Erro no upload de arquivos:', err);
+        alert('Erro ao carregar anexos, mas a transação será salva.');
+      }
+    }
+
     const txData = {
       description: formData.get('description') as string,
       amount: parseFloat((formData.get('amount') as string).replace(',', '.')),
@@ -479,6 +532,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       doc_number: formData.get('doc_number') as string,
       competence: formData.get('competence') as string || null,
       notes: formData.get('notes') as string,
+      attachment_urls: fileUrls, // Now saving URLs
     };
 
     try {
@@ -493,6 +547,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         setIsTxModalOpen(false);
       } else {
         e.currentTarget.reset();
+        setTxFiles([]);
+        setAttachedUrls([]);
         const currentType = editingTx?.type || 'INCOME';
         setEditingTx({ type: currentType, amount: 0, date: new Date().toISOString().split('T')[0], category: '', description: '' } as Transaction);
       }
@@ -523,7 +579,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       }
       setIsCatModalOpen(false);
       setEditingCat(null);
+      e.currentTarget.reset(); // Reset form (works for inline too)
       fetchData();
+      if (!isCatModalOpen) alert('Categoria criada com sucesso!');
     } catch (error: any) {
       console.error(error);
       alert('Erro ao salvar categoria: ' + error.message);
@@ -536,7 +594,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
-    const name = formData.get('name') as string;
+    const firstName = formData.get('firstName') as string;
+    const lastName = formData.get('lastName') as string;
+    const name = `${firstName} ${lastName}`.trim();
     const role = formData.get('role') as UserRole;
 
     let avatarUrl = isAvatarRemoved ? null : editingMember?.avatarUrl;
@@ -569,7 +629,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               must_change_password: true,
               phone: formData.get('phone') as string,
               address: formData.get('address') as string,
+              cep: formData.get('cep') as string,
+              city: formData.get('city') as string,
+              neighborhood: formData.get('neighborhood') as string,
+              state: formData.get('state') as string,
               birth_date: formData.get('birthDate') as string || null,
+              gender: formData.get('gender') as string || null,
+              marital_status: formData.get('maritalStatus') as string,
+              education: formData.get('education') as string,
+              spouse_name: formData.get('spouseName') as string,
+              conversion_date: formData.get('conversionDate') as string || null,
+              baptism_date: formData.get('baptismDate') as string || null,
+              is_baptized: formData.get('isBaptized') === 'true',
+              phone2: formData.get('phone2') as string,
+              doc1: formData.get('doc1') as string,
+              doc2: formData.get('doc2') as string,
+              address_number: formData.get('addressNumber') as string,
+              country: formData.get('country') as string,
+              categories: formData.get('categories') as string,
+              cargos: formData.get('cargos') as string,
             }
           }
         });
@@ -614,9 +692,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       role,
       phone: formData.get('phone') as string,
       address: formData.get('address') as string,
+      cep: formData.get('cep') as string,
+      city: formData.get('city') as string,
+      neighborhood: formData.get('neighborhood') as string,
+      state: formData.get('state') as string,
       birth_date: formData.get('birthDate') as string || null,
       avatar_url: avatarUrl,
       gender: formData.get('gender') as string || null,
+      marital_status: formData.get('maritalStatus') as string,
+      education: formData.get('education') as string,
+      spouse_name: formData.get('spouseName') as string,
+      conversion_date: formData.get('conversionDate') as string || null,
+      baptism_date: formData.get('baptismDate') as string || null,
+      is_baptized: formData.get('isBaptized') === 'true',
+      notes: formData.get('notes') as string,
+      phone2: formData.get('phone2') as string,
+
+      address_number: formData.get('addressNumber') as string,
+      country: formData.get('country') as string,
+      categories: formData.get('categories') as string,
+      cargos: formData.get('cargos') as string,
     };
 
     try {
@@ -641,7 +736,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setAvatarPos({ x: 0, y: 0 });
       setAvatarScale(1);
       setIsAvatarRemoved(false);
-      fetchData();
+
+      await fetchData();
+
+      if (viewingMember && userId === viewingMember.id) {
+        setViewingMemberSubTab('info');
+        const { data: updated } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        if (updated) {
+          setViewingMember({
+            id: updated.id,
+            name: updated.name,
+            email: updated.email,
+            role: updated.role,
+            birthDate: updated.birth_date,
+            address: updated.address,
+            phone: updated.phone,
+            phone2: updated.phone2,
+
+            addressNumber: updated.address_number,
+            country: updated.country,
+            categories: updated.categories,
+            cargos: updated.cargos,
+            avatarUrl: updated.avatar_url,
+            gender: updated.gender,
+            maritalStatus: updated.marital_status,
+            education: updated.education,
+            spouseName: updated.spouse_name,
+            conversionDate: updated.conversion_date,
+            baptismDate: updated.baptism_date,
+            isBaptized: updated.is_baptized,
+            notes: updated.notes,
+            neighborhood: updated.neighborhood,
+            city: updated.city,
+            state: updated.state,
+            cep: updated.cep,
+            createdAt: updated.created_at,
+          });
+        }
+      }
+
       alert('Dados do membro salvos com sucesso!');
     } catch (error: any) {
       console.error('Erro ao salvar membro:', error);
@@ -1843,15 +1976,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         <tr className="bg-slate-100/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
                           <th className="px-8 py-5 w-20">Avatar</th>
                           <th className="px-8 py-5">Nome Completo</th>
-                          <th className="px-8 py-5">E-mail</th>
                           <th className="px-8 py-5">Nascimento</th>
-                          <th className="px-8 py-5">Telefone</th>
+                          <th className="px-8 py-5">Idade</th>
+                          <th className="px-8 py-5">Sexo</th>
+                          <th className="px-8 py-5">Cidade</th>
                           <th className="px-8 py-5 text-center">Ações</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {allUsers.map((u, index) => (
-                          <tr key={u.id} className={`transition group ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-indigo-50/30`}>
+                          <tr key={u.id} className={`transition group ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-indigo-50/30 cursor-pointer`} onClick={() => setViewingMember(u)}>
                             <td className="px-8 py-4">
                               <img
                                 src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`}
@@ -1860,19 +1994,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             </td>
                             <td className="px-8 py-4">
                               <div className="font-bold text-indigo-900 text-sm tracking-tight">{u.name}</div>
-                              {u.role === UserRole.ADMIN && <span className="text-[9px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">Admin</span>}
+                              <div className="text-[10px] text-slate-400 font-medium truncate max-w-[150px]">{u.email}</div>
                             </td>
-                            <td className="px-8 py-4 text-slate-500 text-xs font-medium">{u.email}</td>
-                            <td className="px-8 py-4 text-slate-500 text-xs font-bold tracking-tighter">
+                            <td className="px-8 py-4 text-slate-500 text-xs font-bold whitespace-nowrap">
                               {u.birthDate ? u.birthDate.split('-').reverse().join('/') : '-'}
                             </td>
+                            <td className="px-8 py-4 text-slate-500 text-xs font-bold">
+                              {u.birthDate ? calculateAge(u.birthDate) : '-'}
+                            </td>
+                            <td className="px-8 py-4 text-slate-500 text-[10px] font-black uppercase">
+                              {u.gender === 'M' ? 'Masculino' : u.gender === 'F' ? 'Feminino' : '-'}
+                            </td>
                             <td className="px-8 py-4 text-slate-500 text-xs font-medium">
-                              {u.phone || '-'}
+                              {u.city || '-'}
                             </td>
                             <td className="px-8 py-4 text-center">
-                              <div className="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition">
+                              <div className="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition" onClick={(e) => e.stopPropagation()}>
                                 <button onClick={() => { setEditingMember(u); setIsMemberModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
-                                <button onClick={() => handleResetMemberPassword(u.email)} className="text-orange-500 font-black text-[10px] uppercase hover:underline">Resetar</button>
                                 <button onClick={() => handleDeleteMember(u.id)} className="text-red-600 font-black text-[10px] uppercase hover:underline">Remover</button>
                               </div>
                             </td>
@@ -2821,9 +2959,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <div className="space-y-2">
                     <label className="block text-sm font-bold text-slate-900">Categoria</label>
                     <select name="category" defaultValue={editingTx?.category} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
-                      <option value="">Selecione</option>
-                      {categories.filter(c => c.type === editingTx?.type).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      <option value="">{categories.length === 0 ? 'Nenhuma categoria cadastrada' : 'Selecione'}</option>
+                      {categories.filter(c => c.type === (editingTx?.type || 'INCOME')).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
+                    {categories.filter(c => c.type === (editingTx?.type || 'INCOME')).length === 0 && (
+                      <p className="text-[9px] text-rose-500 font-bold uppercase mt-1">Cadastre categorias na aba Configurações primeiro.</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -2860,15 +3001,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   </div>
                 </div>
 
-                {/* Files Section Mock */}
-                <div className="bg-white border border-slate-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm font-bold text-slate-500">Arquivos 0/5</div>
+                {/* Files Section */}
+                <div className="bg-white border border-slate-100 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold text-slate-500">Arquivos {txFiles.length + attachedUrls.length}/5</div>
+                    <button
+                      type="button"
+                      onClick={() => txFileInputRef.current?.click()}
+                      className="bg-[#004a7c] text-white px-6 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-[#003a63] transition shadow-md"
+                    >
+                      Anexar arquivo (Máx. 10MB/arquivo)
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                    </button>
+                    <input
+                      type="file"
+                      ref={txFileInputRef}
+                      className="hidden"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (txFiles.length + attachedUrls.length + files.length > 5) {
+                          alert('Limite de 5 arquivos por lançamento.');
+                          return;
+                        }
+                        setTxFiles([...txFiles, ...files]);
+                      }}
+                    />
                   </div>
-                  <button type="button" className="bg-[#004a7c] text-white px-6 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-[#003a63] transition shadow-md">
-                    Anexar arquivo (Máx. 10MB/arquivo)
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                  </button>
+
+                  {(txFiles.length > 0 || attachedUrls.length > 0) && (
+                    <div className="flex flex-wrap gap-2">
+                      {attachedUrls.map((url, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                          <span className="text-[10px] font-bold text-slate-400 truncate max-w-[100px]">Arquivo Salvo</span>
+                          <button type="button" onClick={() => setAttachedUrls(attachedUrls.filter((_, idx) => idx !== i))} className="text-rose-500 font-bold ml-2">×</button>
+                        </div>
+                      ))}
+                      {txFiles.map((file, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+                          <span className="text-[10px] font-bold text-indigo-600 truncate max-w-[100px]">{file.name}</span>
+                          <button type="button" onClick={() => setTxFiles(txFiles.filter((_, idx) => idx !== i))} className="text-rose-500 font-bold ml-2">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </form>
 
@@ -3051,8 +3227,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       {
         isMemberModalOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in">
-            <div className="bg-white w-full max-w-xl rounded-[40px] shadow-2xl p-10 overflow-y-auto max-h-[90vh]">
-              <h3 className="text-2xl font-black mb-8 text-slate-900 tracking-tight">{editingMember ? 'Atualizar Perfil' : 'Cadastrar Membro'}</h3>
+            <div className="bg-[#f3f4f6] w-full max-w-6xl rounded-[40px] shadow-2xl p-10 lg:p-14 overflow-y-auto max-h-[95vh]">
+              <h3 className="text-3xl font-black mb-10 text-slate-800 tracking-tight">{editingMember ? 'Atualizar Perfil' : 'Cadastrar Membro'}</h3>
               <form onSubmit={handleSaveMember} className="space-y-5">
                 <div className="flex flex-col items-center mb-6">
                   <div className="relative h-40 w-40 bg-slate-100 rounded-full border-4 border-white shadow-xl overflow-hidden mb-6 group cursor-move select-none"
@@ -3139,34 +3315,156 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-6">
-                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nome Completo</label><input required name="name" defaultValue={editingMember?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nascimento</label><input type="date" name="birthDate" defaultValue={editingMember?.birthDate} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Gênero</label>
-                      <select name="gender" defaultValue={editingMember?.gender} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold">
-                        <option value="">Selecione...</option>
-                        <option value="M">Masculino</option>
-                        <option value="F">Feminino</option>
-                      </select>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  {/* Left Column */}
+                  <div className="space-y-10">
+                    {/* Dados pessoais Card */}
+                    <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Dados pessoais</h4>
+                      </div>
+                      <div className="p-8 space-y-6">
+                        <div className="grid grid-cols-2 gap-6">
+                          <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Nome</label><input required name="firstName" defaultValue={editingMember?.name?.split(' ')[0]} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                          <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Sobrenome</label><input required name="lastName" defaultValue={editingMember?.name?.split(' ').slice(1).join(' ')} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                        </div>
+
+                        <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Senha</label><div className="relative"><input name="password" type="password" placeholder={editingMember ? "Para não alterar, deixe em branco" : "Mínimo 6 caracteres"} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /><button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></button></div></div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de nascimento</label>
+                            <div className="relative group">
+                              <input type="date" name="birthDate" defaultValue={editingMember?.birthDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" />
+                              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-500 opacity-0 group-hover:opacity-100 transition" onClick={(e) => { const input = (e.currentTarget.previousSibling as HTMLInputElement); input.value = ''; }}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Sexo</label>
+                            <div className="flex gap-4 py-2">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="gender" value="M" defaultChecked={editingMember?.gender === 'M'} className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500" />
+                                <span className="text-xs font-bold text-slate-700">Masculino</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="gender" value="F" defaultChecked={editingMember?.gender === 'F'} className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500" />
+                                <span className="text-xs font-bold text-slate-700">Feminino</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Escolaridade</label>
+                            <select name="education" defaultValue={editingMember?.education} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700">
+                              <option value="">Selecione...</option>
+                              <option value="Ensino Fundamental">Ensino Fundamental</option>
+                              <option value="Ensino Médio">Ensino Médio</option>
+                              <option value="Ensino Superior - Cursando">Ensino Superior - Cursando</option>
+                              <option value="Ensino Superior - Completo">Ensino Superior - Completo</option>
+                              <option value="Pós-Graduação">Pós-Graduação</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Estado civil</label>
+                            <select name="maritalStatus" defaultValue={editingMember?.maritalStatus} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700">
+                              <option value="">Selecione...</option>
+                              <option value="Solteiro(a)">Solteiro(a)</option>
+                              <option value="Casado(a)">Casado(a)</option>
+                              <option value="Divorciado(a)">Divorciado(a)</option>
+                              <option value="Viúvo(a)">Viúvo(a)</option>
+                              <option value="União Estável">União Estável</option>
+                            </select>
+                          </div>
+                        </div>
+
+
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nome do Cônjuge</label><input name="spouseName" defaultValue={editingMember?.spouseName} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                      </div>
+                    </div>
+
+                    {/* Outras informações Card */}
+                    <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                        <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                        <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Outras informações</h4>
+                      </div>
+                      <div className="p-8 space-y-6">
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Categorias</label><input name="categories" defaultValue={editingMember?.categories} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Cargos</label><input name="cargos" defaultValue={editingMember?.cargos} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de conversão</label><div className="relative group"><input type="date" name="conversionDate" defaultValue={editingMember?.conversionDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /><button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-500 opacity-0 group-hover:opacity-100 transition" onClick={(e) => { const input = (e.currentTarget.previousSibling as HTMLInputElement); input.value = ''; }}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></div>
+                        <div className="grid grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Batizado</label>
+                            <div className="flex gap-4 py-2">
+                              <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="isBaptized" value="true" defaultChecked={editingMember?.isBaptized === true} className="w-4 h-4 text-teal-600 focus:ring-teal-500" /><span className="text-xs font-bold text-slate-700">Sim</span></label>
+                              <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="isBaptized" value="false" defaultChecked={editingMember?.isBaptized === false} className="w-4 h-4 text-teal-600 focus:ring-teal-500" /><span className="text-xs font-bold text-slate-700">Não</span></label>
+                            </div>
+                          </div>
+                          <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de batismo</label><div className="relative group"><input type="date" name="baptismDate" defaultValue={editingMember?.baptismDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /><button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-500 opacity-0 group-hover:opacity-100 transition" onClick={(e) => { const input = (e.currentTarget.previousSibling as HTMLInputElement); input.value = ''; }}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-10">
+                    {/* Contatos Card */}
+                    <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                        <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                        <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Contatos</h4>
+                      </div>
+                      <div className="p-8 space-y-6">
+                        <div className="grid grid-cols-2 gap-6">
+                          <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Telefone 1</label><input name="phone" placeholder="+556199369261" defaultValue={editingMember?.phone} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                          <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Telefone 2</label><input name="phone2" defaultValue={editingMember?.phone2} placeholder="(00) 00000-0000" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                        </div>
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">E-mail</label><input required name="email" type="email" defaultValue={editingMember?.email} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nível de Acesso</label><select name="role" defaultValue={editingMember?.role || UserRole.READER} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500"><option value={UserRole.ADMIN}>Administrador</option><option value={UserRole.TREASURER}>Tesoureiro</option><option value={UserRole.READER}>Membro Comum</option></select></div>
+                      </div>
+                    </div>
+
+                    {/* Endereço Card */}
+                    <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                        <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                        <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Endereço</h4>
+                      </div>
+                      <div className="p-8 space-y-6">
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Endereço</label><input name="address" defaultValue={editingMember?.address} placeholder="Rua, Conjunto..." className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Número</label><input name="addressNumber" defaultValue={editingMember?.addressNumber} placeholder="Ex: 6g 38" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                        <div className="grid grid-cols-2 gap-6">
+                          <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Bairro</label><input name="neighborhood" defaultValue={editingMember?.neighborhood} placeholder="Ex: Jardim Roriz" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                          <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">CEP</label><input name="cep" defaultValue={editingMember?.cep} placeholder="73340-607" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-6">
+                          <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">País</label><select name="country" defaultValue={editingMember?.country || 'Brazil'} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm"><option value="Brazil">Brazil</option></select></div>
+                          <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Estado</label><input name="state" defaultValue={editingMember?.state} placeholder="Distrito Federal" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                        </div>
+                        <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Cidade</label><input name="city" defaultValue={editingMember?.city} placeholder="Brasília" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" /></div>
+                      </div>
+                    </div>
+
+                    {/* Anotações Card */}
+                    <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                        <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Anotações</h4>
+                      </div>
+                      <div className="p-8">
+                        <textarea name="notes" defaultValue={editingMember?.notes} rows={8} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 resize-none focus:border-teal-500" placeholder="Digite suas anotações aqui..." />
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">E-mail</label><input required name="email" type="email" defaultValue={editingMember?.email} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
-                {!editingMember && (
-                  <div className="bg-indigo-50 p-6 rounded-[24px] border border-indigo-100">
-                    <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Senha Temporária</label>
-                    <input required name="password" type="password" placeholder="Mínimo 6 caracteres" className="w-full px-6 py-4 bg-white border border-indigo-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" />
-                    <p className="mt-2 text-[9px] text-indigo-400 font-bold uppercase tracking-tighter">O usuário poderá alterar esta senha no primeiro login.</p>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Telefone</label><input name="phone" placeholder="(00) 00000-0000" defaultValue={editingMember?.phone} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
-                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nível de Acesso</label><select name="role" defaultValue={editingMember?.role || UserRole.READER} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value={UserRole.ADMIN}>Administrador</option><option value={UserRole.TREASURER}>Tesoureiro</option><option value={UserRole.READER}>Membro Comum</option></select></div>
+
+                <div className="pt-10 flex gap-4">
+                  <button type="button" onClick={() => setIsMemberModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[24px] font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 transition">Cancelar</button>
+                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-4 rounded-[24px] font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition transform active:scale-95">Salvar Cadastro</button>
                 </div>
-                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Endereço</label><input name="address" placeholder="Rua, Número, Bairro..." defaultValue={editingMember?.address} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
-                <div className="pt-6 flex gap-4"><button type="button" onClick={() => setIsMemberModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Fechar</button><button type="submit" className="flex-1 bg-indigo-600 text-white py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl">Salvar Cadastro</button></div>
               </form>
             </div>
           </div>
@@ -3346,6 +3644,397 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     Confirmar
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        viewingMember && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-10 animate-in fade-in duration-300">
+            <div className="bg-[#f8f9fc] w-full max-w-6xl h-full rounded-[40px] shadow-2xl flex flex-col overflow-hidden">
+              {/* Profile Header */}
+              <div className="bg-white px-10 py-8 border-b border-slate-100 flex items-center gap-8 relative shrink-0">
+                <div className={`w-36 h-36 rounded-3xl overflow-hidden border-4 border-white shadow-xl shrink-0 relative group ${viewingMemberSubTab === 'edit' ? 'cursor-pointer' : ''}`}
+                  onClick={() => {
+                    if (viewingMemberSubTab === 'edit') {
+                      const fileInput = document.getElementById('viewingMemberAvatarInput') as HTMLInputElement;
+                      fileInput?.click();
+                    }
+                  }}>
+                  {viewingMemberSubTab === 'edit' ? (
+                    <>
+                      {(!isAvatarRemoved && (avatarPreview || editingMember?.avatarUrl)) ? (
+                        <img
+                          src={avatarPreview || editingMember?.avatarUrl}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-slate-50 flex items-center justify-center text-slate-300">
+                          <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center flex-col gap-2">
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <span className="text-white text-[9px] font-black uppercase tracking-widest text-center px-2">Alterar Foto</span>
+                      </div>
+                      {(!isAvatarRemoved && (avatarPreview || editingMember?.avatarUrl)) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsAvatarRemoved(true);
+                            setAvatarPreview(null);
+                            setTempAvatarFile(null);
+                          }}
+                          className="absolute top-2 right-2 bg-rose-500 text-white p-1.5 rounded-lg shadow-lg hover:bg-rose-600 transition"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <img src={viewingMember.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(viewingMember.name)}&background=random`} className="w-full h-full object-cover" />
+                  )}
+                  <input
+                    id="viewingMemberAvatarInput"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setTempAvatarFile(file);
+                        setAvatarPreview(URL.createObjectURL(file));
+                        setIsAvatarRemoved(false);
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex-grow">
+                  <h2 className="text-3xl font-black text-slate-800 tracking-tight">{viewingMember.name}</h2>
+                  <div className="flex flex-wrap gap-4 mt-3">
+                    <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> {viewingMember.city || 'Cidade não inf.'}</span>
+                    <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg> {viewingMember.phone || 'Sem telefone'}</span>
+                    <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {viewingMember.role}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button className="bg-rose-500 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-100">Arquivar</button>
+                  <button className="bg-[#004a7c] text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-2">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                    Imprimir
+                  </button>
+                  <button onClick={() => setViewingMember(null)} className="p-3 text-slate-400 hover:text-slate-600 transition ml-4"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                </div>
+              </div>
+
+              {/* Internal Tabs */}
+              <div className="bg-white px-10 border-b border-slate-100 flex gap-8 shrink-0">
+                <button onClick={() => setViewingMemberSubTab('info')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${viewingMemberSubTab === 'info' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>Informações</button>
+                <button onClick={() => setViewingMemberSubTab('finances')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${viewingMemberSubTab === 'finances' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>Financeiro</button>
+                <button onClick={() => {
+                  setEditingMember(viewingMember);
+                  setViewingMemberSubTab('edit');
+                  setAvatarPreview(null);
+                  setTempAvatarFile(null);
+                  setIsAvatarRemoved(false);
+                }} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${viewingMemberSubTab === 'edit' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>Editar</button>
+              </div>
+
+              {/* Profile Content Area */}
+              <div className="flex-grow overflow-y-auto p-10 bg-[#f8f9fc]">
+                {viewingMemberSubTab === 'info' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
+                    <div className="space-y-8">
+                      <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
+                          <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Dados Pessoais</h4>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Nome Completo</span> <span className="text-xs font-bold text-slate-700">{viewingMember.name}</span></div>
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Nascimento</span> <span className="text-xs font-bold text-slate-700">{viewingMember.birthDate ? `${viewingMember.birthDate.split('-').reverse().join('/')} (${calculateAge(viewingMember.birthDate)} anos)` : '-'}</span></div>
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Gênero</span> <span className="text-xs font-bold text-slate-700">{viewingMember.gender === 'M' ? 'Masculino' : viewingMember.gender === 'F' ? 'Feminino' : '-'}</span></div>
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Escolaridade</span> <span className="text-xs font-bold text-slate-700">{viewingMember.education || '-'}</span></div>
+                          <div className="flex justify-between pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Estado Civil</span> <span className="text-xs font-bold text-slate-700">{viewingMember.maritalStatus || '-'}</span></div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                          <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Outras Informações</h4>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Cônjuge</span> <span className="text-xs font-bold text-slate-700">{viewingMember.spouseName || '-'}</span></div>
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Conversão</span> <span className="text-xs font-bold text-slate-700">{viewingMember.conversionDate ? viewingMember.conversionDate.split('-').reverse().join('/') : '-'}</span></div>
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Batizado</span> <span className="text-xs font-bold text-slate-700">{viewingMember.isBaptized ? 'Sim' : 'Não'}</span></div>
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Batismo</span> <span className="text-xs font-bold text-slate-700">{viewingMember.baptismDate ? viewingMember.baptismDate.split('-').reverse().join('/') : '-'}</span></div>
+                          <div className="flex justify-between pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Cadastrado em</span> <span className="text-xs font-bold text-slate-700">{viewingMember.createdAt ? new Date(viewingMember.createdAt).toLocaleDateString('pt-BR') : '-'}</span></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-8">
+                      <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-1.5 h-6 bg-sky-500 rounded-full"></div>
+                          <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Contatos & Endereço</h4>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">E-mail</span> <span className="text-xs font-bold text-slate-700">{viewingMember.email}</span></div>
+                          <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Telefone</span> <span className="text-xs font-bold text-slate-700">{viewingMember.phone || '-'}</span></div>
+                          <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Localização</div>
+                            <div className="text-xs font-bold text-slate-600 leading-relaxed">
+                              {viewingMember.address || 'Sem endereço'}<br />
+                              {viewingMember.neighborhood && `${viewingMember.neighborhood}, `}{viewingMember.city && `${viewingMember.city} - ${viewingMember.state || ''}`}<br />
+                              {viewingMember.cep && `CEP: ${viewingMember.cep}`}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-1.5 h-6 bg-slate-800 rounded-full"></div>
+                          <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Anotações</h4>
+                        </div>
+                        <p className="text-xs font-medium text-slate-500 italic leading-relaxed">
+                          {viewingMember.notes || 'Nenhuma observação interna registrada.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {viewingMemberSubTab === 'finances' && (
+                  <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-slide-up">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          <th className="px-8 py-5 flex items-center gap-2">
+                            Data
+                            <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                          </th>
+                          <th className="px-8 py-5">
+                            <div className="flex items-center gap-2">
+                              Nome
+                              <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                            </div>
+                          </th>
+                          <th className="px-8 py-5">
+                            <div className="flex items-center gap-2">
+                              Categoria
+                              <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                            </div>
+                          </th>
+                          <th className="px-8 py-5">
+                            <div className="flex items-center gap-2">
+                              Arquivos
+                              <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                            </div>
+                          </th>
+                          <th className="px-8 py-5 text-right flex items-center justify-end gap-2">
+                            Total
+                            <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {transactions.filter(t => t.member === viewingMember.name).map(t => (
+                          <tr key={t.id} className="hover:bg-slate-50 transition group">
+                            <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.date.split('-').reverse().join('/')}</td>
+                            <td className="px-8 py-5 text-[11px] font-bold text-slate-700">{t.member}</td>
+                            <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.category}</td>
+                            <td className="px-8 py-5">
+                              {t.attachmentUrls && t.attachmentUrls.length > 0 ? (
+                                <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.415 6.414a6 6 0 108.486 8.486L20.5 13" /></svg>
+                              ) : (
+                                <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                              )}
+                            </td>
+                            <td className="px-8 py-5 text-right">
+                              <div className="flex items-center justify-end gap-3">
+                                <span className={`text-[11px] font-black ${t.type === 'INCOME' ? 'text-slate-700' : 'text-rose-500'}`}>
+                                  {formatCurrency(t.amount)}
+                                </span>
+                                <div className="w-4 h-4 bg-emerald-500 rounded flex items-center justify-center">
+                                  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {viewingMemberSubTab === 'edit' && (
+                  <div className="animate-slide-up pb-10">
+                    <form onSubmit={handleSaveMember} className="space-y-10">
+
+
+                      {/* Wide Form Layout (2 columns) */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                        {/* Left Column */}
+                        <div className="space-y-10">
+                          {/* Dados pessoais Card */}
+                          <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2">
+                              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Dados pessoais</h4>
+                            </div>
+                            <div className="p-8 space-y-6">
+                              <div className="grid grid-cols-2 gap-6">
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nome</label><input required name="firstName" defaultValue={editingMember?.name?.split(' ')[0]} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Sobrenome</label><input required name="lastName" defaultValue={editingMember?.name?.split(' ').slice(1).join(' ')} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Senha</label>
+                                <div className="relative">
+                                  <input name="password" type="password" placeholder="Para não alterar, deixe em branco" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" />
+                                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de nascimento</label>
+                                  <div className="relative group">
+                                    <input type="date" name="birthDate" defaultValue={editingMember?.birthDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Sexo</label>
+                                  <div className="flex gap-4 py-2">
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="gender" value="M" defaultChecked={editingMember?.gender === 'M'} className="w-4 h-4 text-teal-600" /><span className="text-xs font-bold text-slate-700">Masculino</span></label>
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="gender" value="F" defaultChecked={editingMember?.gender === 'F'} className="w-4 h-4 text-teal-600" /><span className="text-xs font-bold text-slate-700">Feminino</span></label>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Escolaridade</label>
+                                  <select name="education" defaultValue={editingMember?.education} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700">
+                                    <option value="">Selecione...</option>
+                                    <option value="Ensino Fundamental">Ensino Fundamental</option>
+                                    <option value="Ensino Médio">Ensino Médio</option>
+                                    <option value="Ensino Superior - Cursando">Ensino Superior - Cursando</option>
+                                    <option value="Ensino Superior - Completo">Ensino Superior - Completo</option>
+                                    <option value="Pós-Graduação">Pós-Graduação</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Estado civil</label>
+                                  <select name="maritalStatus" defaultValue={editingMember?.maritalStatus} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700">
+                                    <option value="">Selecione...</option>
+                                    <option value="Solteiro(a)">Solteiro(a)</option>
+                                    <option value="Casado(a)">Casado(a)</option>
+                                    <option value="Divorciado(a)">Divorciado(a)</option>
+                                    <option value="Viúvo(a)">Viúvo(a)</option>
+                                    <option value="União Estável">União Estável</option>
+                                  </select>
+                                </div>
+                              </div>
+
+
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nome do Cônjuge</label><input name="spouseName" defaultValue={editingMember?.spouseName} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                            </div>
+                          </div>
+
+                          {/* Outras informações Card */}
+                          <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                              <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                              <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Outras informações</h4>
+                            </div>
+                            <div className="p-8 space-y-6">
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Categorias</label><input name="categories" defaultValue={editingMember?.categories} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Cargos</label><input name="cargos" defaultValue={editingMember?.cargos} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de conversão</label><input type="date" name="conversionDate" defaultValue={editingMember?.conversionDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                              <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Batizado</label>
+                                  <div className="flex gap-4 py-2">
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="isBaptized" value="true" defaultChecked={editingMember?.isBaptized === true} className="w-4 h-4 text-teal-600" /><span className="text-xs font-bold text-slate-700">Sim</span></label>
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="isBaptized" value="false" defaultChecked={editingMember?.isBaptized === false} className="w-4 h-4 text-teal-600" /><span className="text-xs font-bold text-slate-700">Não</span></label>
+                                  </div>
+                                </div>
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de batismo</label><input type="date" name="baptismDate" defaultValue={editingMember?.baptismDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Column */}
+                        <div className="space-y-10">
+                          {/* Contatos Card */}
+                          <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                              <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                              <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Contatos</h4>
+                            </div>
+                            <div className="p-8 space-y-6">
+                              <div className="grid grid-cols-2 gap-6">
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Telefone 1</label><input name="phone" placeholder="+556199369261" defaultValue={editingMember?.phone} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Telefone 2</label><input name="phone2" defaultValue={editingMember?.phone2} placeholder="(00) 00000-0000" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                              </div>
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">E-mail</label><input required name="email" type="email" defaultValue={editingMember?.email} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nível de Acesso</label><select name="role" defaultValue={editingMember?.role || UserRole.READER} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500"><option value={UserRole.ADMIN}>Administrador</option><option value={UserRole.TREASURER}>Tesoureiro</option><option value={UserRole.READER}>Membro Comum</option></select></div>
+                            </div>
+                          </div>
+
+                          {/* Endereço Card */}
+                          <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                              <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                              <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Endereço</h4>
+                            </div>
+                            <div className="p-8 space-y-6">
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Endereço</label><input name="address" defaultValue={editingMember?.address} placeholder="Rua, Conjunto..." className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Número</label><input name="addressNumber" defaultValue={editingMember?.addressNumber} placeholder="Ex: 6g 38" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                              <div className="grid grid-cols-2 gap-6">
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Bairro</label><input name="neighborhood" defaultValue={editingMember?.neighborhood} placeholder="Ex: Jardim Roriz" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">CEP</label><input name="cep" defaultValue={editingMember?.cep} placeholder="73340-607" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-6">
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">País</label><select name="country" defaultValue={editingMember?.country || 'Brazil'} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700"><option value="Brazil">Brazil</option></select></div>
+                                <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Estado</label><input name="state" defaultValue={editingMember?.state} placeholder="Distrito Federal" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                              </div>
+                              <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Cidade</label><input name="city" defaultValue={editingMember?.city} placeholder="Brasília" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                            </div>
+                          </div>
+
+                          {/* Anotações Card */}
+                          <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                              <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Anotações</h4>
+                            </div>
+                            <div className="p-8">
+                              <textarea name="notes" defaultValue={editingMember?.notes} rows={8} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 resize-none focus:border-teal-500" placeholder="Digite suas anotações aqui..." />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4">
+                        <button type="button" onClick={() => setViewingMemberSubTab('info')} className="flex-1 px-4 py-4 border border-slate-200 rounded-[24px] font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 transition">Descartar</button>
+                        <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white py-4 rounded-[24px] font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition disabled:opacity-50">
+                          {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
             </div>
           </div>

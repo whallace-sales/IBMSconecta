@@ -14,10 +14,29 @@ export interface User {
   isFirstAccess?: boolean;
   birthDate?: string;
   address?: string;
+  cep?: string;
+  city?: string;
+  neighborhood?: string;
+  state?: string;
+  maritalStatus?: string;
+  education?: string;
+  spouseName?: string;
+  conversionDate?: string;
+  baptismDate?: string;
+  isBaptized?: boolean;
+  notes?: string;
   phone?: string;
+  phone2?: string;
+  doc1?: string;
+  doc2?: string;
+  addressNumber?: string;
+  country?: string;
+  categories?: string;
+  cargos?: string;
   avatarUrl?: string;
   mustChangePassword?: boolean;
   gender?: 'M' | 'F' | 'OTHER';
+  createdAt?: string;
 }
 
 export interface ChurchInfo {
@@ -61,6 +80,7 @@ export interface Transaction {
   docNumber?: string;
   competence?: string;
   notes?: string;
+  attachmentUrls?: string[];
 }
 
 export interface ChurchStats {

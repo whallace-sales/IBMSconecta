@@ -10,8 +10,27 @@ create table public.profiles (
   name text,
   role text check (role in ('ADMIN', 'TESOUREIRO', 'LEITOR')) default 'LEITOR',
   birth_date date,
+  gender text,
   address text,
+  cep text,
+  city text,
+  neighborhood text,
+  state text,
+  marital_status text,
+  education text,
+  spouse_name text,
+  conversion_date date,
+  baptism_date date,
+  is_baptized boolean default false,
+  notes text,
   phone text,
+  phone2 text,
+  doc1 text,
+  doc2 text,
+  address_number text,
+  country text,
+  categories text,
+  cargos text,
   avatar_url text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -30,17 +49,25 @@ create policy "profiles_update_self" on public.profiles for update using (auth.u
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, name, role)
+  insert into public.profiles (id, email, name, role, phone, address, birth_date, gender)
   values (
     new.id, 
     new.email, 
     new.raw_user_meta_data->>'name', 
-    coalesce(new.raw_user_meta_data->>'role', 'LEITOR')
+    coalesce(new.raw_user_meta_data->>'role', 'LEITOR'),
+    new.raw_user_meta_data->>'phone',
+    new.raw_user_meta_data->>'address',
+    (new.raw_user_meta_data->>'birth_date')::date,
+    new.raw_user_meta_data->>'gender'
   )
   on conflict (id) do update set
     email = excluded.email,
     name = excluded.name,
-    role = excluded.role;
+    role = excluded.role,
+    phone = excluded.phone,
+    address = excluded.address,
+    birth_date = excluded.birth_date,
+    gender = excluded.gender;
   return new;
 end;
 $$ language plpgsql security definer;
@@ -121,6 +148,7 @@ create table public.transactions (
   doc_number text,
   competence text,
   notes text,
+  attachment_urls text[] default '{}', -- Added column for files
   created_by uuid references public.profiles(id),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
