@@ -56,7 +56,6 @@ export interface Transaction {
   date: string;
   member?: string;
   isPaid?: boolean;
-  account?: string;
   costCenter?: string;
   paymentType?: string;
   docNumber?: string;

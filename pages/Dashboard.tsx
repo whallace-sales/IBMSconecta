@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, UserRole, Transaction, Category, Post, ChurchInfo, CalendarEvent, EventCategory, Department, DepartmentRole, DepartmentMember } from '../types';
 import { INITIAL_CHURCH_INFO } from '../constants';
 import { Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
@@ -104,6 +104,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date());
   const [eventDescription, setEventDescription] = useState('');
   const [postContent, setPostContent] = useState('');
+  const [postImageSource, setPostImageSource] = useState<'url' | 'file'>('url');
+  const [postImageFile, setPostImageFile] = useState<File | null>(null);
+  const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
 
   // Estados de Departamentos
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -145,17 +148,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   // Estados de Senha
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Estado de Submissão Global
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+    if (isProfileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileDropdownOpen]);
+
 
   // Estados de Membros de Departamento
   const [isDeptMemberAddModalOpen, setIsDeptMemberAddModalOpen] = useState(false);
   const [deptMemberUserId, setDeptMemberUserId] = useState('');
   const [deptMemberRoles, setDeptMemberRoles] = useState<string[]>([]);
 
-  // Estado do Menu Mobile
+  // Estado do Menu Mobile e Sidebar Colapsável
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Filtros de Relatório
   const initialFilters = {
@@ -327,8 +349,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         getDepartments()
       ]);
 
+      const processedCats = cats.map(c => {
+        const uppercaseName = c.name.toUpperCase();
+        const lowerName = c.name.toLowerCase();
+        const expenseKeywords = ['aluguel', 'caesb', 'caeb', 'água', 'agua', 'luz', 'energia', 'internet', 'manutenção', 'manutencao'];
+
+        let type = c.type;
+        if ((!type || type === 'INCOME') && expenseKeywords.some(keyword => lowerName.includes(keyword))) {
+          type = 'EXPENSE' as const;
+        }
+
+        return { ...c, name: uppercaseName, type };
+      });
+
       setTransactions(txs);
-      setCategories(cats);
+      setCategories(processedCats);
       setPosts(psts);
       setEvents(evs);
       setEventCategories(evCats);
@@ -368,34 +403,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     reader.readAsDataURL(file);
   };
 
+  const uploadFile = async (file: File, bucket: string, folder: string = '') => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+    const filePath = folder ? `${folder}/${fileName}` : fileName;
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
   // --- Handlers de Ações ---
 
   const handleSaveChurchInfo = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
-
-    // Upload logic logic here if needed, for now assuming URL or previously uploaded
-    // To implement file upload properly, we'd need Supabase Storage.
-    // For now, we keep the text logic, but if image was uploaded locally to base64, 
-    // we might need to handle it. The current UI inputs "logoUrl" is implicit or text.
-    // The previous code didn't handle file upload fully either (just text input for URL or file input that did nothing).
-
-    // Let's assume text inputs for now for simplicity until Storage is set up.
-    const newInfo: ChurchInfo = {
-      name: formData.get('name') as string,
-      logoUrl: churchInfo.logoUrl, // Maintain existing unless changed (logic requires storage)
-      address: formData.get('address') as string,
-      phone: formData.get('phone') as string,
-      email: formData.get('email') as string,
-    };
+    const logoFile = (e.currentTarget.elements.namedItem('logoFile') as HTMLInputElement)?.files?.[0];
 
     try {
+      let logoUrl = churchInfo.logoUrl;
+      if (logoFile) {
+        logoUrl = await uploadFile(logoFile, 'avatars', 'church');
+      }
+
+      const newInfo: ChurchInfo = {
+        name: formData.get('name') as string,
+        logoUrl: logoUrl,
+        address: formData.get('address') as string,
+        phone: formData.get('phone') as string,
+        email: formData.get('email') as string,
+      };
+
       await updateChurchInfo(newInfo);
       alert('Informações atualizadas com sucesso!');
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Erro ao atualizar informações.');
+      alert('Erro ao atualizar informações: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -413,13 +468,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     const txData = {
       description: formData.get('description') as string,
-      amount: parseFloat(formData.get('amount') as string),
+      amount: parseFloat((formData.get('amount') as string).replace(',', '.')),
       type: formData.get('type') as 'INCOME' | 'EXPENSE',
       category_id: catId,
       date: formData.get('date') as string,
       member_name: (formData.get('member') as string) || null,
       is_paid: formData.get('is_paid') === 'true',
-      account: formData.get('account') as string,
       cost_center: formData.get('cost_center') as string,
       payment_type: formData.get('payment_type') as string,
       doc_number: formData.get('doc_number') as string,
@@ -428,6 +482,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
 
     try {
+      setIsSubmitting(true);
       if (editingTx?.id) {
         await supabase.from('transactions').update(txData).eq('id', editingTx.id);
       } else {
@@ -437,15 +492,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       if (closeAfter) {
         setIsTxModalOpen(false);
       } else {
-        // Clear form but keep type
         e.currentTarget.reset();
         const currentType = editingTx?.type || 'INCOME';
         setEditingTx({ type: currentType, amount: 0, date: new Date().toISOString().split('T')[0], category: '', description: '' } as Transaction);
       }
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Erro ao salvar transação');
+      alert('Erro ao salvar transação: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -453,12 +509,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const catData = {
-      name: formData.get('name') as string,
+      name: (formData.get('name') as string).toUpperCase(),
       color: formData.get('color') as string || 'indigo',
       type: formData.get('type') as 'INCOME' | 'EXPENSE',
       description: formData.get('description') as string || null,
     };
     try {
+      setIsSubmitting(true);
       if (editingCat) {
         await supabase.from('categories').update(catData).eq('id', editingCat.id);
       } else {
@@ -467,9 +524,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setIsCatModalOpen(false);
       setEditingCat(null);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Erro ao salvar categoria');
+      alert('Erro ao salvar categoria: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -561,8 +620,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
 
     try {
+      setIsSubmitting(true);
       if (userId) {
-        // Usar upsert em vez de update para evitar falha caso o trigger ainda não tenha criado o perfil
         const { error } = await supabase
           .from('profiles')
           .upsert({
@@ -587,22 +646,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     } catch (error: any) {
       console.error('Erro ao salvar membro:', error);
       alert('Erro ao salvar membro: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleSavePost = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+
+    let imageUrl = (formData.get('imageUrl') as string) || (editingPost?.imageUrl) || 'https://picsum.photos/seed/church/800/400';
+
+    if (postImageSource === 'file' && postImageFile) {
+      try {
+        const fileExt = postImageFile.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `post-images/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars') // Using existing 'avatars' bucket
+          .upload(filePath, postImageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
+      } catch (error) {
+        console.error('Error uploading post image:', error);
+        alert('Erro ao carregar imagem. Usando URL padrão.');
+      }
+    }
+
     const postData = {
       title: formData.get('title') as string,
       content: postContent,
       date: editingPost?.date || new Date().toISOString().split('T')[0],
-      image_url: (formData.get('imageUrl') as string) || 'https://picsum.photos/seed/church/800/400',
+      image_url: imageUrl,
       is_active: editingPost ? editingPost.isActive : true,
       author_id: user.id
     };
 
     try {
+      setIsSubmitting(true);
       if (editingPost) {
         await supabase.from('posts').update(postData).eq('id', editingPost.id);
       } else {
@@ -611,10 +699,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setIsPostModalOpen(false);
       setEditingPost(null);
       setPostContent('');
+      setPostImageFile(null);
+      setPostImagePreview(null);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Erro ao salvar postagem');
+      alert('Erro ao salvar postagem: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -696,6 +788,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
 
     try {
+      setIsSubmitting(true);
       const payload = {
         title: eventData.title,
         start_date: eventData.startDate,
@@ -719,9 +812,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setEditingEvent(null);
       setEventDescription('');
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Erro ao salvar evento');
+      alert('Erro ao salvar evento: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -785,36 +880,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const handleSaveDepartment = async () => {
     if (!deptName) return alert('Nome é obrigatório');
+    setIsSubmitting(true);
 
     try {
+      let bannerUrl = deptBannerUrl;
+      let iconUrl = deptIcon;
+
+      // Se as cores forem Base64 (upload local temporário), subir para o Storage
+      if (deptBannerUrl.startsWith('data:')) {
+        const res = await fetch(deptBannerUrl);
+        const blob = await res.blob();
+        bannerUrl = await uploadFile(new File([blob], 'banner.jpg', { type: 'image/jpeg' }), 'avatars', 'depts');
+      }
+
+      if (deptIcon.startsWith('data:')) {
+        const res = await fetch(deptIcon);
+        const blob = await res.blob();
+        iconUrl = await uploadFile(new File([blob], 'icon.jpg', { type: 'image/jpeg' }), 'avatars', 'depts');
+      }
+
       let deptId = selectedDept?.id;
 
       if (deptId) {
-        // Update
         const { error } = await supabase.from('departments').update({
           name: deptName,
           description: deptDescription,
-          banner_url: deptBannerUrl,
-          icon: deptIcon
+          banner_url: bannerUrl,
+          icon: iconUrl
         }).eq('id', deptId);
         if (error) throw error;
       } else {
-        // Create
         const { data, error } = await supabase.from('departments').insert([{
           name: deptName,
           description: deptDescription,
-          banner_url: deptBannerUrl,
-          icon: deptIcon,
+          banner_url: bannerUrl,
+          icon: iconUrl,
           is_active: true
         }]).select().single();
         if (error) throw error;
         deptId = data.id;
       }
 
-      // Sync Roles
       if (deptId) {
         await supabase.from('department_roles').delete().eq('department_id', deptId);
-
         if (deptEditorRoles.length > 0) {
           const rolesToInsert = deptEditorRoles.map(role => ({
             department_id: deptId,
@@ -837,6 +945,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       alert('Departamento salvo com sucesso!');
     } catch (error: any) {
       alert('Erro ao salvar departamento: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -910,6 +1020,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
   };
 
+  const handleDeleteCat = async (id: string) => {
+    if (confirm('Deseja realmente excluir esta categoria? Transações vinculadas poderão ficar sem categoria.')) {
+      try {
+        const { error } = await supabase.from('categories').delete().eq('id', id);
+        if (error) throw error;
+        fetchData();
+      } catch (error: any) {
+        alert('Erro ao excluir categoria: ' + error.message);
+      }
+    }
+  };
+
   // --- Lógica de Filtros e Stats ---
 
   const globalStats = useMemo(() => ({
@@ -957,22 +1079,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     return { filtered, income: inc, expense: exp, balance: inc - exp };
   }, [transactions, reportFilters, categories]);
 
-  const SidebarItem = ({ icon, label, id, roles }: { icon: React.ReactNode, label: string, id: any, roles?: UserRole[] }) => {
+  const SidebarItem = ({ icon, label, id, roles, isLogout }: { icon: React.ReactNode, label: string, id: any, roles?: UserRole[], isLogout?: boolean }) => {
     if (roles && !roles.includes(user.role)) return null;
-    return (
+
+    const isActive = activeTab === id;
+    const content = (
       <button
-        onClick={() => setActiveTab(id)}
-        className={`w-full flex items-center gap-5 px-8 py-5 md:px-6 md:py-4 transition-all duration-200 border-r-4 ${activeTab === id
-          ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-black'
-          : 'border-transparent text-slate-500 hover:bg-slate-50 font-bold'
-          } text-xl md:text-sm`}
+        onClick={isLogout ? onLogout : () => setActiveTab(id)}
+        className={`w-full flex items-center transition-all duration-300 relative group px-6 py-4.5 ${isSidebarCollapsed ? 'justify-center' : 'gap-5'} ${isActive
+          ? 'text-white'
+          : isLogout ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+          }`}
       >
-        <div className={`${activeTab === id ? 'scale-110' : 'scale-100'} transition-transform duration-200 flex-shrink-0 [&_svg]:w-8 [&_svg]:h-8 md:[&_svg]:w-6 md:[&_svg]:h-6`}>
+        {isActive && !isSidebarCollapsed && (
+          <div className="absolute left-0 top-2 bottom-2 w-1.5 bg-indigo-500 rounded-r-full shadow-[0_0_20px_rgba(99,102,241,0.6)]"></div>
+        )}
+        <div className={`transition-all duration-300 flex-shrink-0 ${isActive ? 'text-indigo-400 scale-110' : 'text-slate-500 group-hover:text-slate-300'} [&_svg]:w-6 [&_svg]:h-6`}>
           {icon}
         </div>
-        <span className="tracking-tight truncate">{label}</span>
+        <span className={`text-base tracking-tight transition-all duration-500 truncate ${isActive ? 'font-black' : 'font-bold'} ${isSidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto ml-5'}`}>
+          {label}
+        </span>
       </button>
     );
+
+    return content;
   };
 
   return (
@@ -1010,28 +1141,48 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         }
       `}</style>
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col hidden lg:flex print:hidden">
-        <div className="p-8 border-b border-slate-100 flex items-center gap-3">
-          <div className="bg-transparent">
-            <img src="/logo.png" className="w-12 h-auto object-contain" alt="Logo IBMS" />
+      <aside className={`transition-all duration-500 ease-in-out ${isSidebarCollapsed ? 'w-24' : 'w-80'} bg-[#0f172a] flex flex-col hidden lg:flex print:hidden relative overflow-hidden group/sidebar shadow-2xl flex-shrink-0`}>
+        {/* Background Gradients */}
+        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent pointer-events-none"></div>
+
+        <div className={`p-8 border-b border-slate-800/50 flex items-center relative z-10 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : 'gap-4'}`}>
+          <div className="bg-white/10 p-2.5 rounded-2xl shadow-xl backdrop-blur-md border border-white/5 shrink-0 group-hover/sidebar:scale-105 transition-transform duration-300">
+            <img src={churchInfo.logoUrl || '/logo.png'} className="w-10 h-10 object-contain" alt="Logo" />
           </div>
-          <span className="font-bold text-xl text-slate-900 tracking-tight truncate">{churchInfo.name}</span>
-        </div>
-        <nav className="flex-grow pt-8 overflow-y-auto">
-          <SidebarItem id="overview" label="Início" icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
-          <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-          <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
-          <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
-          <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
-          <SidebarItem id="agenda" label="Agenda" icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
-          <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
-          <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
-        </nav>
-        <div className="p-8 border-t border-slate-100">
-          <button onClick={onLogout} className="w-full text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-2">
-            Sair do Painel
+          {!isSidebarCollapsed && (
+            <span className="font-black text-xl text-white tracking-tighter truncate animate-fade-in">{churchInfo.name}</span>
+          )}
+
+          {/* Collapse Toggle Button */}
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className={`absolute -right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center border-4 border-[#0f172a] shadow-lg transition-all duration-300 opacity-0 group-hover/sidebar:opacity-100 z-50 hover:scale-110 active:scale-95`}
+          >
+            <svg className={`w-4 h-4 transition-transform duration-500 ${isSidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
         </div>
+
+        <nav className="flex-grow pt-8 overflow-y-auto relative z-10 scrollbar-hide space-y-1 px-2">
+          <SidebarItem id="overview" label="Início" icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
+          <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+          <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2-0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
+          <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
+          <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
+          <SidebarItem id="agenda" label="Agenda" icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+          <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
+          <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+
+          <div className="pt-4 mt-4 border-t border-slate-800/50">
+            <SidebarItem id="logout" label="Sair do Painel" isLogout icon={
+              <svg className="w-6 h-6 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            } />
+          </div>
+        </nav>
+
       </aside>
 
       {/* Mobile Sidebar Overlay */}
@@ -1043,42 +1194,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       )}
 
       {/* Mobile Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full w-[80%] max-w-[320px] bg-white border-r border-slate-200 flex flex-col z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src="/logo.png" className="w-16 h-auto object-contain" alt="Logo IBMS" />
-            <span className="font-extrabold text-xl text-slate-900 tracking-tighter truncate">{churchInfo.name}</span>
+      <aside className={`fixed top-0 left-0 h-full w-[80%] max-w-[320px] bg-[#0f172a] flex flex-col z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none"></div>
+
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="bg-white/10 p-2 rounded-xl border border-white/5 shrink-0">
+              <img src={churchInfo.logoUrl || '/logo.png'} className="w-8 h-8 object-contain" alt="Logo" />
+            </div>
+            <span className="font-black text-lg text-white tracking-tighter truncate">{churchInfo.name}</span>
           </div>
           <button
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="p-2.5 hover:bg-slate-100 rounded-2xl transition border border-slate-100"
+            className="p-2 hover:bg-slate-800 rounded-xl transition border border-slate-800 text-slate-400"
           >
-            <svg className="w-7 h-7 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
-        <nav className="flex-grow pt-4 overflow-y-auto">
+        <nav className="flex-grow pt-4 overflow-y-auto relative z-10 scrollbar-hide">
           <div onClick={() => setIsMobileSidebarOpen(false)}>
-            <SidebarItem id="overview" label="Início" icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
-            <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-            <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
-            <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
-            <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
-            <SidebarItem id="agenda" label="Agenda" icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
-            <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
-            <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+            <SidebarItem id="overview" label="Início" icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
+            <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+            <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
+            <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
+            <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
+            <SidebarItem id="agenda" label="Agenda" icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+            <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
+            <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+
+            <div className="pt-4 mt-4 border-t border-slate-800/50">
+              <SidebarItem id="logout" label="Sair do Painel" isLogout icon={
+                <svg className="w-6 h-6 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              } />
+            </div>
           </div>
         </nav>
-
-        <div className="p-6 border-t border-slate-100 mt-auto">
-          <button onClick={onLogout} className="w-full text-red-500 hover:text-red-700 font-black text-lg transition flex items-center justify-center gap-3 py-4 bg-red-50 rounded-2xl shadow-sm active:scale-95 duration-150">
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-            Sair do Painel
-          </button>
-        </div>
       </aside>
 
-      <main className="flex-grow flex flex-col print:p-0">
+      <main className="flex-grow flex flex-col min-w-0 min-h-screen bg-slate-50 print:p-0">
         <header className="h-16 md:h-24 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 md:px-10 flex items-center justify-between sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-4">
             {/* Hamburger Menu Button - Mobile Only */}
@@ -1092,12 +1248,68 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             </button>
             <h2 className="text-lg md:text-2xl font-black text-slate-900">{tabTitles[activeTab]}</h2>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="font-bold text-slate-900 leading-tight">{user.name}</p>
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{user.role}</p>
-            </div>
-            <img src={user.avatarUrl || `https://i.pravatar.cc/100?u=${user.id}`} className="w-12 h-12 rounded-full border-2 border-indigo-100" alt="avatar" />
+          <div className="relative" ref={profileDropdownRef}>
+            <button
+              onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+              className="flex items-center gap-4 p-2 pl-4 rounded-2xl hover:bg-slate-50 transition-all duration-300 group"
+            >
+              <div className="text-right hidden sm:block">
+                <p className="font-black text-slate-900 leading-tight group-hover:text-indigo-600 transition">{user.name}</p>
+                <p className="text-[10px] text-slate-900 font-black uppercase tracking-widest opacity-60">{user.role}</p>
+              </div>
+              <div className="relative">
+                <img src={user.avatarUrl || `https://i.pravatar.cc/100?u=${user.id}`} className="w-12 h-12 rounded-full border-2 border-indigo-100 shadow-sm group-hover:border-indigo-300 transition-all duration-300" alt="avatar" />
+                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-sm border border-slate-100 group-hover:rotate-180 transition-transform duration-500">
+                  <svg className="w-3 h-3 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+            </button>
+
+            {isProfileDropdownOpen && (
+              <div className="absolute right-0 mt-4 w-64 bg-white/95 backdrop-blur-xl rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/20 p-3 z-50 animate-in fade-in zoom-in duration-200">
+                <div className="px-5 py-4 mb-2 border-b border-slate-50">
+                  <p className="text-xs font-black text-slate-900 uppercase tracking-widest">Atalho Rápido</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingMember(user);
+                    setIsMemberModalOpen(true);
+                    setIsProfileDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-300 group"
+                >
+                  <div className="bg-slate-100 p-2 rounded-xl group-hover:bg-indigo-100 transition">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                  </div>
+                  <span className="font-black text-[10px] uppercase tracking-[0.15em]">Editar Perfil</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsChangePasswordModalOpen(true);
+                    setIsProfileDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-900 hover:bg-orange-50 hover:text-orange-600 transition-all duration-300 group"
+                >
+                  <div className="bg-slate-100 p-2 rounded-xl group-hover:bg-orange-100 transition">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                  </div>
+                  <span className="font-black text-[10px] uppercase tracking-[0.15em]">Alterar Senha</span>
+                </button>
+                <div className="h-2"></div>
+                <button
+                  onClick={() => {
+                    onLogout();
+                    setIsProfileDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-rose-600 hover:bg-rose-50 transition-all duration-300 group"
+                >
+                  <div className="bg-rose-50 p-2 rounded-xl group-hover:bg-rose-100 transition">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                  </div>
+                  <span className="font-black text-[10px] uppercase tracking-[0.15em]">Sair</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
@@ -1105,56 +1317,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           {activeTab === 'overview' && (
             <div className="space-y-8 md:space-y-10 animate-slide-up">
               {/* Demographics Row */}
-              <div className="bg-white p-4 md:p-6 rounded-3xl md:rounded-[32px] border border-slate-100 shadow-sm grid grid-cols-2 md:flex md:flex-row items-center justify-around gap-4 md:gap-6">
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="bg-teal-50 w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center text-teal-600 shadow-sm">
-                    <svg className="w-5 h-5 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  { label: 'Membros Totais', value: demographics.total, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>, bg: 'bg-indigo-50', text: 'text-indigo-600' },
+                  { label: 'Público Masculino', value: `${demographics.menPercent}%`, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>, bg: 'bg-sky-50', text: 'text-sky-600' },
+                  { label: 'Público Feminino', value: `${demographics.womenPercent}%`, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>, bg: 'bg-rose-50', text: 'text-rose-600' }
+                ].map((card, i) => (
+                  <div key={i} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`${card.bg} ${card.text} p-4 rounded-2xl transition-transform group-hover:scale-110 duration-300`}>
+                        {card.icon}
+                      </div>
+                      <div className="h-1 w-12 bg-slate-100 rounded-full"></div>
+                    </div>
+                    <h5 className="text-4xl font-black text-slate-900 tracking-tighter mb-1">{card.value}</h5>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em]">{card.label}</p>
                   </div>
-                  <div>
-                    <h5 className="text-xl md:text-3xl font-black text-slate-800 tracking-tighter">{demographics.total}</h5>
-                    <p className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest">Total</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="bg-sky-50 w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center text-sky-600 shadow-sm">
-                    <svg className="w-5 h-5 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                  </div>
-                  <div>
-                    <h5 className="text-xl md:text-3xl font-black text-slate-800 tracking-tighter">{demographics.menPercent}%</h5>
-                    <p className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest">Homens</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="bg-pink-50 w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center text-pink-600 shadow-sm">
-                    <svg className="w-5 h-5 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                  </div>
-                  <div>
-                    <h5 className="text-xl md:text-3xl font-black text-slate-800 tracking-tighter">{demographics.womenPercent}%</h5>
-                    <p className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest">Mulheres</p>
-                  </div>
-                </div>
+                ))}
               </div>
 
               {/* Grid com Financeiro e Agenda */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
                 {/* Coluna Esquerda - Financeiro */}
                 <div className="lg:col-span-7 space-y-6 md:space-y-8">
-                  <div className="grid grid-cols-2 gap-3 md:gap-6">
-                    <div className="bg-white p-4 md:p-8 rounded-3xl border-t-4 border-emerald-500 shadow-sm">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Entradas</p>
-                      <p className="text-xl md:text-4xl font-black text-emerald-600 tracking-tight">{formatCurrency(globalStats.income)}</p>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Entradas do Mês</p>
+                      <p className="text-4xl font-black text-emerald-600 tracking-tighter">{formatCurrency(globalStats.income)}</p>
+                      <div className="absolute -right-4 -bottom-4 bg-emerald-50 w-24 h-24 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
                     </div>
-                    <div className="bg-white p-4 md:p-8 rounded-3xl border-t-4 border-red-500 shadow-sm">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Saídas</p>
-                      <p className="text-xl md:text-4xl font-black text-red-600 tracking-tight">{formatCurrency(globalStats.expense)}</p>
+                    <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500"></div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Saídas do Mês</p>
+                      <p className="text-4xl font-black text-rose-600 tracking-tighter">{formatCurrency(globalStats.expense)}</p>
+                      <div className="absolute -right-4 -bottom-4 bg-rose-50 w-24 h-24 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
                     </div>
                   </div>
-                  <div className="bg-indigo-600 p-5 md:p-10 rounded-3xl text-white shadow-lg relative overflow-hidden">
+                  <div className="bg-[#4f46e5] px-8 py-7 rounded-[32px] text-white shadow-2xl shadow-indigo-200 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
                     <div className="relative z-10">
-                      <p className="text-indigo-200 font-bold text-[10px] uppercase mb-1">Saldo em Caixa</p>
-                      <p className="text-3xl md:text-7xl font-black tracking-tighter">{formatCurrency(globalStats.income - globalStats.expense)}</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-pulse"></div>
+                        <p className="text-indigo-100 font-bold text-[9px] uppercase tracking-[0.2em]">Saldo Disponível em Caixa</p>
+                      </div>
+                      <p className="text-4xl md:text-5xl font-black tracking-tighter">{formatCurrency(globalStats.income - globalStats.expense)}</p>
                     </div>
                   </div>
 
@@ -1324,7 +1531,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
                     <div className="flex items-center gap-6">
                       <div className="relative">
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 -ml-20 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pesquisar</span>
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 -ml-20 text-[10px] font-black text-slate-900 uppercase tracking-widest">Pesquisar</span>
                         <input
                           type="text"
                           placeholder="Ex: Nome, descrição..."
@@ -1335,7 +1542,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       </div>
 
                       <div className="flex gap-2">
-                        <button className="p-2 text-slate-400 hover:text-indigo-600 transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg></button>
                         <button className="p-2 text-slate-400 hover:text-indigo-600 transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></button>
                         <button className="p-2 text-slate-400 hover:text-indigo-600 transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg></button>
                       </div>
@@ -1424,7 +1630,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             <th className="px-6 py-4 text-center">Total</th>
                             <th className="px-6 py-4 text-center">Contato</th>
                             <th className="px-6 py-4">Categoria</th>
-                            <th className="px-6 py-4">Conta</th>
                             <th className="px-6 py-4 text-center">Ações</th>
                           </tr>
                         </thead>
@@ -1449,13 +1654,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                               </td>
                               <td className="px-6 py-4 text-center text-slate-500 text-[10px] font-black uppercase">{t.member || ''}</td>
                               <td className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-tight">{t.category}</td>
-                              <td className="px-6 py-4 text-slate-400 text-[10px] font-bold">Principal</td>
                               <td className="px-6 py-4">
-                                <div className="flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition">
-                                  <button onClick={() => window.print()} className="p-1.5 text-slate-400 hover:text-indigo-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg></button>
-                                  <button onClick={() => { setEditingTx(t); setIsTxModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                                  <button onClick={() => { setEditingTx({ ...t, id: Math.random().toString(36).substr(2, 9) }); setIsTxModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg></button>
-                                  <button onClick={() => handleDeleteTx(t.id)} className="p-1.5 text-slate-400 hover:text-rose-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                <div className="flex justify-center gap-3 transition">
+                                  <button onClick={() => { setEditingTx(t); setIsTxModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Editar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                  <button onClick={() => { setEditingTx({ ...t, id: Math.random().toString(36).substr(2, 9) }); setIsTxModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Duplicar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg></button>
+                                  <button onClick={() => handleDeleteTx(t.id)} className="p-1.5 text-slate-400 hover:text-rose-600 transition" title="Excluir"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                                 </div>
                               </td>
                             </tr>
@@ -1499,7 +1702,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     {/* Income Categories */}
                     <div className="bg-white rounded-3xl border border-emerald-100 shadow-sm overflow-hidden h-fit">
                       <div className="bg-emerald-500 p-5 text-center">
-                        <h4 className="text-white font-black uppercase text-sm tracking-widest">Receitas ({categories.filter(c => c.type === 'INCOME').length})</h4>
+                        <h4 className="text-white font-black uppercase text-sm tracking-widest">Receitas ({categories.filter(c => (c.type || 'INCOME') === 'INCOME').length})</h4>
+                      </div>
+                      <div className="p-4 bg-slate-50 border-b border-slate-100">
+                        <form onSubmit={handleSaveCat} className="flex gap-2">
+                          <input type="hidden" name="type" value="INCOME" />
+                          <input
+                            required
+                            name="name"
+                            placeholder="+ Nova Receita (Dizimo, Oferta...)"
+                            className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl outline-none font-bold text-[11px] placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <button type="submit" className="bg-emerald-500 text-white px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-emerald-600 transition shadow-sm">
+                            Criar
+                          </button>
+                        </form>
                       </div>
                       <div className="p-2">
                         <table className="w-full text-left">
@@ -1510,16 +1727,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-50">
-                            {categories.filter(c => c.type === 'INCOME').map(cat => (
+                            {categories.filter(c => (c.type || 'INCOME') === 'INCOME').map(cat => (
                               <tr key={cat.id} className="hover:bg-slate-50 transition group">
                                 <td className="px-4 py-4">
-                                  <div className="font-black text-slate-700 text-xs tracking-tight">{cat.name}</div>
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full bg-${cat.color}-500 flex-shrink-0 animate-pulse`}></div>
+                                    <div className="font-bold text-slate-700 text-xs tracking-tight">{cat.name}</div>
+                                  </div>
                                   {cat.description && <div className="text-[10px] text-slate-400">{cat.description}</div>}
                                 </td>
                                 <td className="px-4 py-4 text-right">
                                   <div className="flex justify-end gap-2">
                                     <button onClick={() => setEditingCat(cat)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Editar</button>
-                                    <button onClick={() => { if (confirm('Remover?')) setCategories(categories.filter(c => c.id !== cat.id)); }} className="border border-rose-200 text-rose-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-rose-50 transition">Remover</button>
+                                    <button onClick={() => handleDeleteCat(cat.id)} className="border border-rose-200 text-rose-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-rose-50 transition">Remover</button>
                                   </div>
                                 </td>
                               </tr>
@@ -1532,7 +1752,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     {/* Expense Categories */}
                     <div className="bg-white rounded-3xl border border-rose-100 shadow-sm overflow-hidden h-fit">
                       <div className="bg-rose-500 p-5 text-center">
-                        <h4 className="text-white font-black uppercase text-sm tracking-widest">Despesas ({categories.filter(c => c.type === 'EXPENSE').length})</h4>
+                        <h4 className="text-white font-black uppercase text-sm tracking-widest">Despesas ({categories.filter(c => (c.type || 'EXPENSE') === 'EXPENSE').length})</h4>
+                      </div>
+                      <div className="p-4 bg-slate-50 border-b border-slate-100">
+                        <form onSubmit={handleSaveCat} className="flex gap-2">
+                          <input type="hidden" name="type" value="EXPENSE" />
+                          <input
+                            required
+                            name="name"
+                            placeholder="+ Nova Despesa (Aluguel, Luz...)"
+                            className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl outline-none font-bold text-[11px] placeholder:text-slate-400 focus:ring-2 focus:ring-rose-500"
+                          />
+                          <button type="submit" className="bg-rose-500 text-white px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-rose-600 transition shadow-sm">
+                            Criar
+                          </button>
+                        </form>
                       </div>
                       <div className="p-2">
                         <table className="w-full text-left">
@@ -1543,16 +1777,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-50">
-                            {categories.filter(c => c.type === 'EXPENSE').map(cat => (
+                            {categories.filter(c => (c.type || 'EXPENSE') === 'EXPENSE').map(cat => (
                               <tr key={cat.id} className="hover:bg-slate-50 transition group">
                                 <td className="px-4 py-4">
-                                  <div className="font-black text-slate-700 text-xs tracking-tight">{cat.name}</div>
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full bg-${cat.color}-500 flex-shrink-0 animate-pulse`}></div>
+                                    <div className="font-bold text-slate-700 text-xs tracking-tight">{cat.name}</div>
+                                  </div>
                                   {cat.description && <div className="text-[10px] text-slate-400">{cat.description}</div>}
                                 </td>
                                 <td className="px-4 py-4 text-right">
                                   <div className="flex justify-end gap-2">
                                     <button onClick={() => setEditingCat(cat)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Editar</button>
-                                    <button onClick={() => { if (confirm('Remover?')) setCategories(categories.filter(c => c.id !== cat.id)); }} className="border border-rose-200 text-rose-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-rose-50 transition">Remover</button>
+                                    <button onClick={() => handleDeleteCat(cat.id)} className="border border-rose-200 text-rose-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-rose-50 transition">Remover</button>
                                   </div>
                                 </td>
                               </tr>
@@ -1563,47 +1800,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </div>
                   </div>
 
-                  {/* Creation Form Sidebar */}
-                  <div className="w-full lg:w-80 space-y-4 sticky top-8">
-                    <div className="bg-emerald-500 rounded-2xl p-4 text-white flex items-center gap-3 shadow-lg">
-                      <div className="bg-white/20 p-2 rounded-xl"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg></div>
-                      <span className="font-black uppercase text-xs tracking-widest">{editingCat ? 'Editar Categoria' : 'Criar categoria'}</span>
-                    </div>
 
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-8 space-y-6">
-                      <form onSubmit={handleSaveCat} className="space-y-6">
-                        <div className="space-y-2">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da categoria</label>
-                          <input required name="name" defaultValue={editingCat?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold text-xs" />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</label>
-                          <textarea name="description" defaultValue={editingCat?.description} rows={4} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold text-xs resize-none" />
-                        </div>
-                        <div className="space-y-4">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</label>
-                          <div className="flex gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <input type="radio" name="type" value="INCOME" defaultChecked={editingCat?.type !== 'EXPENSE'} className="hidden peer" />
-                              <div className="w-4 h-4 rounded-full border-2 border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-500 transition shadow-sm"></div>
-                              <span className="text-xs font-black text-slate-400 group-hover:text-slate-600 peer-checked:text-emerald-600 transition uppercase tracking-widest">Receitas</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <input type="radio" name="type" value="EXPENSE" defaultChecked={editingCat?.type === 'EXPENSE'} className="hidden peer" />
-                              <div className="w-4 h-4 rounded-full border-2 border-slate-200 peer-checked:border-rose-500 peer-checked:bg-rose-500 transition shadow-sm"></div>
-                              <span className="text-xs font-black text-slate-400 group-hover:text-slate-600 peer-checked:text-rose-600 transition uppercase tracking-widest">Despesas</span>
-                            </label>
-                          </div>
-                        </div>
-                        <div className="pt-4 flex gap-3">
-                          {editingCat && <button type="button" onClick={() => setEditingCat(null)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Cancelar</button>}
-                          <button type="submit" className="flex-1 bg-emerald-400 text-white py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-emerald-500 transition">
-                            {editingCat ? 'Salvar' : 'Criar'}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
@@ -1863,11 +2060,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 print:hidden">
                 <div className="flex justify-between items-center mb-10"><h3 className="text-xl font-black text-slate-900 tracking-tight">Filtros Avançados</h3><button onClick={() => window.print()} className="bg-indigo-600 text-white px-8 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg">Imprimir Relatório</button></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Data Inicial</label><input type="date" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={reportFilters.startDate} onChange={(e) => setReportFilters({ ...reportFilters, startDate: e.target.value })} /></div>
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Data Final</label><input type="date" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={reportFilters.endDate} onChange={(e) => setReportFilters({ ...reportFilters, endDate: e.target.value })} /></div>
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fluxo</label><select className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none" value={reportFilters.type} onChange={(e) => setReportFilters({ ...reportFilters, type: e.target.value })}><option value="ALL">Todos os Fluxos</option><option value="INCOME">Entradas (+)</option><option value="EXPENSE">Saídas (-)</option></select></div>
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Categoria</label><select className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none" value={reportFilters.category} onChange={(e) => setReportFilters({ ...reportFilters, category: e.target.value })}><option value="ALL">Todas</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Membro</label><select className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none" value={reportFilters.member} onChange={(e) => setReportFilters({ ...reportFilters, member: e.target.value })}><option value="ALL">Todos</option>{Array.from(new Set(transactions.map(t => t.member).filter(Boolean))).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Data Inicial</label><input type="date" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={reportFilters.startDate} onChange={(e) => setReportFilters({ ...reportFilters, startDate: e.target.value })} /></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Data Final</label><input type="date" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={reportFilters.endDate} onChange={(e) => setReportFilters({ ...reportFilters, endDate: e.target.value })} /></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Fluxo</label><select className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none" value={reportFilters.type} onChange={(e) => setReportFilters({ ...reportFilters, type: e.target.value })}><option value="ALL">Todos os Fluxos</option><option value="INCOME">Entradas (+)</option><option value="EXPENSE">Saídas (-)</option></select></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Categoria</label><select className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none" value={reportFilters.category} onChange={(e) => setReportFilters({ ...reportFilters, category: e.target.value })}><option value="ALL">Todas</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Membro</label><select className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-black font-bold outline-none" value={reportFilters.member} onChange={(e) => setReportFilters({ ...reportFilters, member: e.target.value })}><option value="ALL">Todos</option>{Array.from(new Set(transactions.map(t => t.member).filter(Boolean))).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -1880,14 +2077,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
           {activeTab === 'posts' && (
             <div className="space-y-8 animate-slide-up">
-              <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-slate-900 tracking-tight">Conteúdo Web</h3><button onClick={() => { setEditingPost(null); setIsPostModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition">+ Novo Conteúdo</button></div>
+              <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-slate-900 tracking-tight">Conteúdo Web</h3><button onClick={() => { setEditingPost(null); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition">+ Novo Conteúdo</button></div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {posts.map(post => (
                   <div key={post.id} className={`bg-white rounded-[40px] overflow-hidden shadow-sm border border-slate-100 group flex flex-col transition-all ${!post.isActive ? 'opacity-50 grayscale' : ''}`}>
                     <img src={post.imageUrl} className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-105" alt={post.title} />
                     <div className="p-8 flex-grow">
                       <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{post.date}</span>
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{post.date}</span>
                         {!post.isActive && <span className="bg-slate-900 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Inativo</span>}
                       </div>
                       <h4 className="font-black text-slate-900 text-lg mb-2 leading-tight">{post.title}</h4>
@@ -1895,7 +2092,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         {post.content.replace(/<[^>]*>/g, '')}
                       </p>
                       <div className="flex gap-4 pt-6 border-t border-slate-50">
-                        <button onClick={() => { setEditingPost(post); setIsPostModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                        <button onClick={() => { setEditingPost(post); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
                         <button onClick={() => togglePostVisibility(post.id)} className={`${post.isActive ? 'text-orange-500' : 'text-emerald-500'} font-black text-[10px] uppercase hover:underline`}>{post.isActive ? 'Ocultar' : 'Exibir'}</button>
                         <button onClick={() => handleDeletePost(post.id)} className="text-red-500 font-black text-[10px] uppercase hover:underline">Excluir</button>
                       </div>
@@ -1951,7 +2148,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-3xl overflow-hidden">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
                       <div key={day} className="bg-slate-50 py-4 text-center">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{day}</span>
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{day}</span>
                       </div>
                     ))}
                     {(() => {
@@ -2032,7 +2229,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         <div key={cat.id} className="flex items-center justify-between group">
                           <div className="flex items-center gap-3">
                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }}></div>
-                            <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">{cat.name}</span>
+                            <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">{cat.name}</span>
                           </div>
                           <button
                             onClick={() => handleDeleteEventCat(cat.id)}
@@ -2210,52 +2407,77 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center gap-4">
                       <button
                         onClick={() => document.getElementById('deptBannerInput')?.click()}
-                        className="bg-white text-slate-900 px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl opacity-0 group-hover:opacity-100 transition"
+                        className="bg-white text-slate-900 px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl opacity-0 group-hover:opacity-100 transition hover:bg-indigo-50"
                       >
                         Alterar Banner
                       </button>
+                      {deptBannerUrl && (
+                        <button
+                          onClick={() => setDeptBannerUrl(null)}
+                          className="bg-rose-500 text-white px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl opacity-0 group-hover:opacity-100 transition hover:bg-rose-600"
+                        >
+                          Remover
+                        </button>
+                      )}
                     </div>
                     <input id="deptBannerInput" type="file" accept="image/*" onChange={handleDeptBannerUpload} className="hidden" />
 
                     {/* Icon Circle */}
-                    <div className="absolute left-12 -bottom-16 w-32 h-32 bg-indigo-100 rounded-2xl border-8 border-white shadow-xl flex items-center justify-center text-indigo-600 relative group/icon overflow-hidden">
+                    <div className="absolute left-12 -bottom-16 w-32 h-32 bg-indigo-100 rounded-2xl border-8 border-white shadow-xl flex items-center justify-center text-indigo-600 group/icon overflow-hidden">
                       {deptIcon && deptIcon.length > 200 ? (
                         <img src={deptIcon} className="w-full h-full object-cover" />
                       ) : (
                         <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={deptIcon || 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'} /></svg>
                       )}
-                      <button
-                        onClick={() => document.getElementById('deptIconInput')?.click()}
-                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/icon:opacity-100 transition text-white"
-                      >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      </button>
+
+                      <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2 opacity-0 group-hover/icon:opacity-100 transition">
+                        <button
+                          onClick={() => document.getElementById('deptIconInput')?.click()}
+                          className="text-white hover:scale-110 transition"
+                          title="Alterar Ícone"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        </button>
+                        {deptIcon && (
+                          <button
+                            onClick={() => setDeptIcon(null)}
+                            className="bg-rose-500 text-white p-1.5 rounded-full hover:bg-rose-600 transition shadow-lg"
+                            title="Remover Ícone"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <input id="deptIconInput" type="file" accept="image/*" onChange={handleDeptIconUpload} className="hidden" />
                   </div>
 
                   <div className="p-12 pt-24 space-y-12">
-                    <div className="space-y-6 max-w-4xl">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome do departamento</label>
-                        <input
-                          type="text"
-                          value={deptName}
-                          onChange={(e) => setDeptName(e.target.value)}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sobre o departamento</label>
-                        <textarea
-                          rows={4}
-                          value={deptDescription}
-                          onChange={(e) => setDeptDescription(e.target.value)}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                        ></textarea>
+                    <div className="flex flex-col md:flex-row gap-8">
+                      {/* Spacer for the absolute icon overlap on desktop */}
+                      <div className="hidden md:block w-32 shrink-0"></div>
+                      <div className="space-y-6 flex-1 max-w-4xl">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nome do departamento</label>
+                          <input
+                            type="text"
+                            value={deptName}
+                            onChange={(e) => setDeptName(e.target.value)}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Sobre o departamento</label>
+                          <textarea
+                            rows={4}
+                            value={deptDescription}
+                            onChange={(e) => setDeptDescription(e.target.value)}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                          ></textarea>
+                        </div>
                       </div>
                     </div>
 
@@ -2341,7 +2563,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <div className="w-full lg:w-80 shrink-0 space-y-4">
                     <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
                       <div className="flex items-center justify-between mb-6">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meus Departamentos</h4>
+                        <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Meus Departamentos</h4>
                         <button onClick={() => setDeptView('templates')} className="text-indigo-600 font-black text-xs">+</button>
                       </div>
                       <div className="space-y-2">
@@ -2483,10 +2705,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </div>
 
                 <form onSubmit={handleSaveChurchInfo} className="space-y-6">
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome Institucional</label><input name="name" required defaultValue={churchInfo.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none text-black font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nome Institucional</label><input name="name" required defaultValue={churchInfo.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none text-black font-bold focus:ring-2 focus:ring-indigo-500" /></div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Logo Institucional (Anexo)</label>
+                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Logo Institucional (Anexo)</label>
                     <div className="flex items-center gap-6">
                       <div className="h-16 w-16 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center">
                         {churchInfo.logoUrl ? <img src={churchInfo.logoUrl} className="h-full w-full object-cover" /> : <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
@@ -2495,27 +2717,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </div>
                   </div>
 
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Endereço Sede</label><input name="address" defaultValue={churchInfo.address} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none text-black font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Endereço Sede</label><input name="address" defaultValue={churchInfo.address} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none text-black font-bold focus:ring-2 focus:ring-indigo-500" /></div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Telefone</label><input name="phone" defaultValue={churchInfo.phone} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none text-black font-bold focus:ring-2 focus:ring-indigo-500" /></div>
-                    <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">E-mail Administrativo</label><input name="email" type="email" defaultValue={churchInfo.email} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none text-black font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+                    <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Telefone</label><input name="phone" defaultValue={churchInfo.phone} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none text-black font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+                    <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">E-mail Administrativo</label><input name="email" type="email" defaultValue={churchInfo.email} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none text-black font-bold focus:ring-2 focus:ring-indigo-500" /></div>
                   </div>
                   <div className="pt-6"><button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-[24px] font-black uppercase text-xs tracking-widest shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition transform active:scale-[0.98]">Salvar Configurações</button></div>
                 </form>
 
-                <div className="mt-12 pt-12 border-t border-slate-100">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="bg-orange-500 p-3 rounded-2xl text-white">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-black text-slate-900 tracking-tight">Segurança</h3>
-                      <p className="text-slate-400 font-medium text-sm">Altere sua senha de acesso ao painel.</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setIsChangePasswordModalOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition">Alterar Minha Senha</button>
-                </div>
+
               </div>
             </div>
           )}
@@ -2524,182 +2735,167 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       {/* --- Modais --- */}
 
-      {isTxModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-[#f8fafb] w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
-            {/* Modal Header */}
-            <div className={`px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white`}>
-              <h3 className={`text-xl font-bold tracking-tight ${editingTx?.type === 'EXPENSE' ? 'text-[#f43f5e]' : 'text-[#20b2aa]'}`}>
-                {editingTx?.id ? (editingTx.type === 'INCOME' ? 'Editar receita' : 'Editar despesa') : (editingTx?.type === 'INCOME' ? 'Criar receita' : 'Criar despesa')}
-              </h3>
-              <button
-                onClick={() => setIsTxModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 transition p-2"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form id="txForm" onSubmit={(e) => handleSaveTx(e)} className="p-8 space-y-8 overflow-y-auto">
-              <input type="hidden" name="type" value={editingTx?.type || 'INCOME'} />
-
-              {/* Row 1: Data, Descricao, Valor, Pago */}
-              <div className="flex flex-wrap gap-6 items-end">
-                <div className="flex-1 min-w-[200px] space-y-2">
-                  <label className="block text-sm font-bold text-slate-600">Data</label>
-                  <div className={`flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus-within:ring-rose-200' : 'focus-within:ring-[#20b2aa]/30'}`}>
-                    <input
-                      required name="date" type="date"
-                      defaultValue={editingTx?.date || new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-3 outline-none text-slate-700 font-medium"
-                    />
-                    <div className="bg-slate-100 p-3 border-l border-slate-200 text-slate-500">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-[2] min-w-[300px] space-y-2">
-                  <label className="block text-sm font-bold text-slate-600">Descrição</label>
-                  <input
-                    required name="description"
-                    defaultValue={editingTx?.description}
-                    placeholder="Descrição da transação"
-                    className={`w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700 focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`}
-                  />
-                </div>
-
-                <div className="flex-1 min-w-[150px] space-y-2 text-right">
-                  <label className="block text-sm font-bold text-slate-600 text-left">Valor</label>
-                  <div className={`flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus-within:ring-rose-200' : 'focus-within:ring-[#20b2aa]/30'}`}>
-                    <span className="pl-4 text-slate-400 font-bold">R$</span>
-                    <input
-                      required name="amount" type="number" step="0.01"
-                      defaultValue={editingTx?.amount}
-                      className="w-full px-4 py-3 outline-none text-right font-black text-slate-700"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center space-y-2 pb-1">
-                  <label className="block text-sm font-bold text-slate-600">Pago?</label>
-                  <label className="relative cursor-pointer">
-                    <input type="checkbox" name="is_paid" value="true" defaultChecked={editingTx?.isPaid !== false} className="sr-only peer" />
-                    <div className={`w-12 h-12 flex items-center justify-center rounded-full bg-slate-200 text-white transition-all shadow-inner peer-checked:bg-${editingTx?.type === 'EXPENSE' ? 'rose-500' : '[#20b2aa]'}`}>
-                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
-                    </div>
-                  </label>
-                </div>
+      {
+        isTxModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-[#f8fafb] w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+              {/* Modal Header */}
+              <div className={`px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white`}>
+                <h3 className={`text-xl font-bold tracking-tight ${editingTx?.type === 'EXPENSE' ? 'text-[#f43f5e]' : 'text-[#20b2aa]'}`}>
+                  {editingTx?.id ? (editingTx.type === 'INCOME' ? 'Editar receita' : 'Editar despesa') : (editingTx?.type === 'INCOME' ? 'Criar receita' : 'Criar despesa')}
+                </h3>
+                <button
+                  onClick={() => setIsTxModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 transition p-2"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
               </div>
 
-              {/* Row 2: Pagador/Recebedor, Categoria, Conta, Centro de Custo */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold text-slate-600">{editingTx?.type === 'EXPENSE' ? 'Pago à' : 'Recebido de'}</label>
-                  <select name="member" defaultValue={editingTx?.member} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
-                    <option value="">Selecione</option>
-                    {allUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
-                  </select>
-                </div>
+              {/* Modal Body */}
+              <form id="txForm" onSubmit={(e) => handleSaveTx(e)} className="p-8 space-y-8 overflow-y-auto">
+                <input type="hidden" name="type" value={editingTx?.type || 'INCOME'} />
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold text-slate-600">Categoria</label>
-                  <select name="category" defaultValue={editingTx?.category} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
-                    <option value="">Selecione</option>
-                    {categories.filter(c => c.type === editingTx?.type).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold text-slate-600">Conta</label>
-                  <select name="account" defaultValue={editingTx?.account || 'Principal'} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
-                    <option value="Principal">Banco Sede - Principal</option>
-                    <option value="Caixa Local">Caixa Local</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold text-slate-600">Centro de custo</label>
-                  <select name="cost_center" defaultValue={editingTx?.costCenter} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
-                    <option value="">Selecione</option>
-                    <option value="Administrativo">Administrativo</option>
-                    <option value="Eventos">Eventos</option>
-                    <option value="Infraestrutura">Infraestrutura</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 3: Tipo Pgto, Doc Nr, Competencia + Annotacoes */}
-              <div className="flex flex-col md:flex-row gap-8">
-                <div className="flex-1 space-y-6">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-600">Tipo de pagamento</label>
-                    <select name="payment_type" defaultValue={editingTx?.paymentType || 'Único'} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
-                      <option value="Único">Único</option>
-                      <option value="Parcelado">Parcelado</option>
-                      <option value="Recorrente">Recorrente</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-600">Doc nº</label>
-                    <input name="doc_number" defaultValue={editingTx?.docNumber} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-600">Competência</label>
-                    <div className="flex items-center bg-slate-100/50 border border-slate-200 rounded-lg overflow-hidden">
-                      <input name="competence" type="month" defaultValue={editingTx?.competence ? editingTx.competence.substring(0, 7) : ''} className="w-full px-4 py-3 bg-transparent outline-none text-slate-600 font-medium" />
-                      <div className="p-3 text-slate-400 border-l border-slate-200">
+                {/* Row 1: Data, Descricao, Valor, Pago */}
+                <div className="flex flex-wrap gap-6 items-end">
+                  <div className="flex-1 min-w-[200px] space-y-2">
+                    <label className="block text-sm font-bold text-slate-900">Data</label>
+                    <div className={`flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus-within:ring-rose-200' : 'focus-within:ring-[#20b2aa]/30'}`}>
+                      <input
+                        required name="date" type="date"
+                        defaultValue={editingTx?.date || new Date().toISOString().split('T')[0]}
+                        className="w-full px-4 py-3 outline-none text-slate-700 font-medium"
+                      />
+                      <div className="bg-slate-100 p-3 border-l border-slate-200 text-slate-500">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </div>
                     </div>
                   </div>
+
+                  <div className="flex-[2] min-w-[300px] space-y-2">
+                    <label className="block text-sm font-bold text-slate-900">Descrição</label>
+                    <input
+                      required name="description"
+                      defaultValue={editingTx?.description}
+                      placeholder="Descrição da transação"
+                      className={`w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700 focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-[150px] space-y-2 text-right">
+                    <label className="block text-sm font-bold text-slate-900 text-left">Valor</label>
+                    <div className={`flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus-within:ring-rose-200' : 'focus-within:ring-[#20b2aa]/30'}`}>
+                      <span className="pl-4 text-slate-400 font-bold">R$</span>
+                      <input
+                        required name="amount" type="text" inputMode="decimal"
+                        defaultValue={editingTx?.amount}
+                        placeholder="0,00"
+                        onKeyPress={(e) => {
+                          if (!/[0-9,.]/.test(e.key)) e.preventDefault();
+                        }}
+                        className="w-full px-4 py-3 outline-none text-right font-black text-slate-700"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center space-y-2 pb-1">
+                    <label className="block text-sm font-bold text-slate-900">Pago?</label>
+                    <label className="relative cursor-pointer">
+                      <input type="checkbox" name="is_paid" value="true" defaultChecked={editingTx?.isPaid !== false} className="sr-only peer" />
+                      <div className={`w-12 h-12 flex items-center justify-center rounded-full bg-slate-200 text-white transition-all shadow-inner peer-checked:bg-${editingTx?.type === 'EXPENSE' ? 'rose-500' : '[#20b2aa]'}`}>
+                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
-                <div className="flex-1 space-y-2">
-                  <label className="block text-sm font-bold text-slate-600">Anotações</label>
-                  <textarea name="notes" defaultValue={editingTx?.notes} rows={8} className={`w-full px-6 py-4 bg-white border border-slate-200 rounded-xl outline-none font-medium text-slate-700 resize-none shadow-sm focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`} placeholder="Observações importantes..." />
-                </div>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-slate-900">{editingTx?.type === 'EXPENSE' ? 'Pago à' : 'Recebido de'}</label>
+                    <select name="member" defaultValue={editingTx?.member} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
+                      <option value="">Selecione</option>
+                      {allUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                    </select>
+                  </div>
 
-              {/* Files Section Mock */}
-              <div className="bg-white border border-slate-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="text-sm font-bold text-slate-500">Arquivos 0/5</div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-slate-900">Categoria</label>
+                    <select name="category" defaultValue={editingTx?.category} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
+                      <option value="">Selecione</option>
+                      {categories.filter(c => c.type === editingTx?.type).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-slate-900">Doc nº</label>
+                    <input name="doc_number" defaultValue={editingTx?.docNumber} placeholder="Opcional" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700" />
+                  </div>
                 </div>
-                <button type="button" className="bg-[#004a7c] text-white px-6 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-[#003a63] transition shadow-md">
-                  Anexar arquivo (Máx. 10MB/arquivo)
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+
+                <div className="flex flex-col md:flex-row gap-8">
+                  <div className="flex-1 space-y-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-bold text-slate-900">Tipo de pagamento</label>
+                      <select name="payment_type" defaultValue={editingTx?.paymentType || 'Único'} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
+                        <option value="Único">Único</option>
+                        <option value="Parcelado">Parcelado</option>
+                        <option value="Recorrente">Recorrente</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-bold text-slate-900">Competência</label>
+                      <div className="flex items-center bg-slate-100/50 border border-slate-200 rounded-lg overflow-hidden">
+                        <input name="competence" type="month" defaultValue={editingTx?.competence ? editingTx.competence.substring(0, 7) : ''} className="w-full px-4 py-3 bg-transparent outline-none text-slate-600 font-medium" />
+                        <div className="p-3 text-slate-400 border-l border-slate-200">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-2">
+                    <label className="block text-sm font-bold text-slate-900">Anotações</label>
+                    <textarea name="notes" defaultValue={editingTx?.notes} rows={8} className={`w-full px-6 py-4 bg-white border border-slate-200 rounded-xl outline-none font-medium text-slate-700 resize-none shadow-sm focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`} placeholder="Observações importantes..." />
+                  </div>
+                </div>
+
+                {/* Files Section Mock */}
+                <div className="bg-white border border-slate-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm font-bold text-slate-500">Arquivos 0/5</div>
+                  </div>
+                  <button type="button" className="bg-[#004a7c] text-white px-6 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-[#003a63] transition shadow-md">
+                    Anexar arquivo (Máx. 10MB/arquivo)
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                </div>
+              </form>
+
+              {/* Modal Footer */}
+              <div className="p-8 border-t border-slate-100 bg-white flex justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={(e: any) => {
+                    const form = document.getElementById('txForm') as HTMLFormElement;
+                    const event = new Event('submit', { cancelable: true }) as any;
+                    handleSaveTx({ ...event, currentTarget: form, preventDefault: () => { } } as any, false);
+                  }}
+                  className="bg-[#004a7c] text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-xl hover:bg-[#003a63] transition active:scale-[0.98]"
+                >
+                  Salvar e novo
+                </button>
+                <button
+                  type="submit"
+                  form="txForm"
+                  className={`text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-xl transition active:scale-[0.98] ${editingTx?.type === 'EXPENSE' ? 'bg-[#f43f5e] hover:bg-[#e11d48]' : 'bg-[#20b2aa] hover:bg-[#1a8e88]'}`}
+                >
+                  Salvar e fechar
                 </button>
               </div>
-            </form>
-
-            {/* Modal Footer */}
-            <div className="p-8 border-t border-slate-100 bg-white flex justify-end gap-4">
-              <button
-                type="button"
-                onClick={(e: any) => {
-                  const form = document.getElementById('txForm') as HTMLFormElement;
-                  const event = new Event('submit', { cancelable: true }) as any;
-                  handleSaveTx({ ...event, currentTarget: form, preventDefault: () => { } } as any, false);
-                }}
-                className="bg-[#004a7c] text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-xl hover:bg-[#003a63] transition active:scale-[0.98]"
-              >
-                Salvar e novo
-              </button>
-              <button
-                type="submit"
-                form="txForm"
-                className={`text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-xl transition active:scale-[0.98] ${editingTx?.type === 'EXPENSE' ? 'bg-[#f43f5e] hover:bg-[#e11d48]' : 'bg-[#20b2aa] hover:bg-[#1a8e88]'}`}
-              >
-                Salvar e fechar
-              </button>
             </div>
           </div>
-        </div>
-      )
+        )
       }
 
       {
@@ -2708,8 +2904,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             <div className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl p-10">
               <h3 className="text-xl font-black mb-8 text-slate-900 uppercase tracking-widest">Nova Categoria</h3>
               <form onSubmit={handleSaveCat} className="space-y-6">
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome</label><input required name="name" placeholder="Ex: Manutenção..." defaultValue={editingCat?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cor de Destaque</label><select name="color" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value="indigo">Índigo</option><option value="emerald">Esmeralda</option><option value="rose">Rosa</option><option value="amber">Âmbar</option><option value="blue">Azul</option><option value="teal">Teal</option></select></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nome</label><input required name="name" placeholder="Ex: Manutenção..." defaultValue={editingCat?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Cor de Destaque</label><select name="color" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value="indigo">Índigo</option><option value="emerald">Esmeralda</option><option value="rose">Rosa</option><option value="amber">Âmbar</option><option value="blue">Azul</option><option value="teal">Teal</option></select></div>
                 <div className="pt-4 flex gap-4"><button type="button" onClick={() => setIsCatModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Sair</button><button type="submit" className="flex-1 bg-slate-900 text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest">Criar</button></div>
               </form>
             </div>
@@ -2749,7 +2945,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                   <div className="lg:col-span-1">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Início</label>
+                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1">Início</label>
                     <input type="date" name="startDate" required defaultValue={editingEvent?.startDate || new Date().toISOString().split('T')[0]} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none" />
                   </div>
                   <div>
@@ -2766,7 +2962,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <div className="flex items-center gap-6">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" name="isAllDay" defaultChecked={editingEvent?.isAllDay} className="w-4 h-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500" />
-                    <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Dia inteiro</span>
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Dia inteiro</span>
                   </label>
                   <div className="flex-grow">
                     <select name="repeat" defaultValue={editingEvent?.repeat || 'NONE'} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 outline-none">
@@ -2781,7 +2977,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Categoria</label>
+                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Categoria</label>
                     <select name="categoryId" defaultValue={editingEvent?.categoryId} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 outline-none">
                       <option value="">Nenhuma</option>
                       {eventCategories.map(cat => (
@@ -2790,13 +2986,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Local</label>
+                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Local</label>
                     <input name="location" defaultValue={editingEvent?.location} placeholder="Ex: Templo Principal" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none" />
                   </div>
                 </div>
 
                 <div className="flex flex-col h-64">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Descrição</label>
+                  <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Descrição</label>
                   <ReactQuill
                     theme="snow"
                     value={eventDescription}
@@ -2835,11 +3031,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <h3 className="text-xl font-black mb-8 text-slate-900 uppercase tracking-widest text-center">Nova Categoria de Evento</h3>
               <form onSubmit={handleSaveEventCat} className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome</label>
+                  <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nome</label>
                   <input required name="name" placeholder="Ex: Direção Culto..." className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-sky-500" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cor</label>
+                  <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Cor</label>
                   <input type="color" name="color" defaultValue="#6366f1" className="w-full h-12 bg-white border border-slate-200 rounded-xl outline-none p-1 cursor-pointer" />
                 </div>
                 <div className="pt-4 flex gap-4">
@@ -2901,7 +3097,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <div className="w-full max-w-xs space-y-4">
                     {(avatarPreview || editingMember?.avatarUrl) && !isAvatarRemoved && (
                       <div className="flex items-center gap-4">
-                        <span className="text-[10px] font-black text-slate-400 uppercase">Zoom</span>
+                        <span className="text-[10px] font-black text-slate-900 uppercase">Zoom</span>
                         <input
                           type="range" min="1" max="3" step="0.1"
                           value={avatarScale}
@@ -2943,22 +3139,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome Completo</label><input required name="name" defaultValue={editingMember?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nascimento</label><input type="date" name="birthDate" defaultValue={editingMember?.birthDate} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
+                <div className="space-y-6">
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nome Completo</label><input required name="name" defaultValue={editingMember?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nascimento</label><input type="date" name="birthDate" defaultValue={editingMember?.birthDate} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Gênero</label>
+                      <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Gênero</label>
                       <select name="gender" defaultValue={editingMember?.gender} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold">
                         <option value="">Selecione...</option>
                         <option value="M">Masculino</option>
                         <option value="F">Feminino</option>
-                        <option value="OTHER">Outro</option>
                       </select>
                     </div>
                   </div>
                 </div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">E-mail</label><input required name="email" type="email" defaultValue={editingMember?.email} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">E-mail</label><input required name="email" type="email" defaultValue={editingMember?.email} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
                 {!editingMember && (
                   <div className="bg-indigo-50 p-6 rounded-[24px] border border-indigo-100">
                     <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Senha Temporária</label>
@@ -2967,10 +3162,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Telefone</label><input name="phone" placeholder="(00) 00000-0000" defaultValue={editingMember?.phone} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
-                  <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nível de Acesso</label><select name="role" defaultValue={editingMember?.role || UserRole.READER} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value={UserRole.ADMIN}>Administrador</option><option value={UserRole.TREASURER}>Tesoureiro</option><option value={UserRole.READER}>Membro Comum</option></select></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Telefone</label><input name="phone" placeholder="(00) 00000-0000" defaultValue={editingMember?.phone} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
+                  <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nível de Acesso</label><select name="role" defaultValue={editingMember?.role || UserRole.READER} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value={UserRole.ADMIN}>Administrador</option><option value={UserRole.TREASURER}>Tesoureiro</option><option value={UserRole.READER}>Membro Comum</option></select></div>
                 </div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Endereço</label><input name="address" placeholder="Rua, Número, Bairro..." defaultValue={editingMember?.address} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Endereço</label><input name="address" placeholder="Rua, Número, Bairro..." defaultValue={editingMember?.address} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" /></div>
                 <div className="pt-6 flex gap-4"><button type="button" onClick={() => setIsMemberModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Fechar</button><button type="submit" className="flex-1 bg-indigo-600 text-white py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl">Salvar Cadastro</button></div>
               </form>
             </div>
@@ -2985,10 +3180,61 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <h3 className="text-2xl font-black mb-8 text-slate-900 tracking-tight">{editingPost ? 'Editar Publicação' : 'Nova Publicação'}</h3>
               <form onSubmit={handleSavePost} className="space-y-6">
                 <input required name="title" placeholder="Título da Publicação" defaultValue={editingPost?.title} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" />
-                <input name="imageUrl" placeholder="URL da Imagem de Destaque" defaultValue={editingPost?.imageUrl} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" />
+
+                <div className="space-y-4">
+                  <div className="flex gap-4 p-1.5 bg-slate-100 rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => setPostImageSource('url')}
+                      className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${postImageSource === 'url' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      URL da Imagem
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPostImageSource('file')}
+                      className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${postImageSource === 'file' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      Carregar Arquivo
+                    </button>
+                  </div>
+
+                  {postImageSource === 'url' ? (
+                    <input name="imageUrl" placeholder="Cole a URL da imagem aqui" defaultValue={editingPost?.imageUrl} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold text-sm" />
+                  ) : (
+                    <div className="relative group">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setPostImageFile(file);
+                            setPostImagePreview(URL.createObjectURL(file));
+                          }
+                        }}
+                        className="hidden"
+                        id="post-image-upload"
+                      />
+                      <label
+                        htmlFor="post-image-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[24px] cursor-pointer hover:bg-slate-100 transition group-hover:border-indigo-300 overflow-hidden"
+                      >
+                        {postImagePreview ? (
+                          <img src={postImagePreview} className="w-full h-full object-cover" alt="Preview" />
+                        ) : (
+                          <>
+                            <svg className="w-8 h-8 text-slate-300 mb-2 group-hover:text-indigo-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Selecionar Imagem</span>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex flex-col h-80">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Conteúdo</label>
+                  <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Conteúdo</label>
                   <div className="flex-grow rounded-2xl overflow-hidden border border-slate-200">
                     <ReactQuill
                       theme="snow"
@@ -3003,7 +3249,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
                 <div className="pt-4 flex gap-4">
                   <button type="button" onClick={() => setIsPostModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Voltar</button>
-                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl">Publicar</button>
+                  <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl disabled:opacity-50">
+                    {isSubmitting ? 'Processando...' : 'Publicar'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -3021,8 +3269,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               )}
               <h3 className="text-xl font-black mb-8 text-slate-900 uppercase tracking-widest text-center">Definir Senha</h3>
               <form onSubmit={handleUpdatePassword} className="space-y-6">
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nova Senha</label><input required type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Confirmar</label><input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nova Senha</label><input required type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Confirmar</label><input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
                 <div className="pt-4 flex gap-4">
                   {!user.mustChangePassword ? (
                     <button type="button" onClick={() => setIsChangePasswordModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Sair</button>
@@ -3036,109 +3284,114 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               </form>
             </div>
           </div>
-        )}
+        )
+      }
 
-      {isDeptMemberAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in">
-          <div className="bg-white w-full max-w-md rounded-[40px] shadow-2xl p-10">
-            <h3 className="text-xl font-black mb-8 text-slate-900 uppercase tracking-widest text-center">Adicionar Participante</h3>
-            <div className="space-y-6">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Membro</label>
-                <select
-                  value={deptMemberUserId}
-                  onChange={(e) => setDeptMemberUserId(e.target.value)}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"
-                >
-                  <option value="">Selecione um membro...</option>
-                  {allUsers.filter(u => !deptMembers.some(m => m.userId === u.id)).map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Funções no Departamento</label>
-                <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-[20px] border border-slate-200">
-                  {deptRoles.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 font-bold uppercase w-full text-center py-2">Nenhuma função cadastrada</p>
-                  ) : (
-                    deptRoles.map(role => (
-                      <label key={role.id} className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-100 hover:border-indigo-200 transition">
-                        <input
-                          type="checkbox"
-                          checked={deptMemberRoles.includes(role.name)}
-                          onChange={(e) => {
-                            if (e.target.checked) setDeptMemberRoles([...deptMemberRoles, role.name]);
-                            else setDeptMemberRoles(deptMemberRoles.filter(r => r !== role.name));
-                          }}
-                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="text-xs font-bold text-slate-700">{role.name}</span>
-                      </label>
-                    ))
-                  )}
+      {
+        isDeptMemberAddModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in">
+            <div className="bg-white w-full max-w-md rounded-[40px] shadow-2xl p-10">
+              <h3 className="text-xl font-black mb-8 text-slate-900 uppercase tracking-widest text-center">Adicionar Participante</h3>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Membro</label>
+                  <select
+                    value={deptMemberUserId}
+                    onChange={(e) => setDeptMemberUserId(e.target.value)}
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"
+                  >
+                    <option value="">Selecione um membro...</option>
+                    {allUsers.filter(u => !deptMembers.some(m => m.userId === u.id)).map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
 
-              <div className="pt-4 flex gap-4">
-                <button
-                  onClick={() => setIsDeptMemberAddModalOpen(false)}
-                  className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSaveDeptMember}
-                  disabled={!deptMemberUserId}
-                  className="flex-1 bg-indigo-600 text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl disabled:opacity-50"
-                >
-                  Confirmar
-                </button>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Funções no Departamento</label>
+                  <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-[20px] border border-slate-200">
+                    {deptRoles.length === 0 ? (
+                      <p className="text-[10px] text-slate-400 font-bold uppercase w-full text-center py-2">Nenhuma função cadastrada</p>
+                    ) : (
+                      deptRoles.map(role => (
+                        <label key={role.id} className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-100 hover:border-indigo-200 transition">
+                          <input
+                            type="checkbox"
+                            checked={deptMemberRoles.includes(role.name)}
+                            onChange={(e) => {
+                              if (e.target.checked) setDeptMemberRoles([...deptMemberRoles, role.name]);
+                              else setDeptMemberRoles(deptMemberRoles.filter(r => r !== role.name));
+                            }}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-xs font-bold text-slate-700">{role.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 flex gap-4">
+                  <button
+                    onClick={() => setIsDeptMemberAddModalOpen(false)}
+                    className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveDeptMember}
+                    disabled={!deptMemberUserId}
+                    className="flex-1 bg-indigo-600 text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl disabled:opacity-50"
+                  >
+                    Confirmar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Floating Action Button - Mobile Only */}
-      {['overview', 'finances', 'members', 'agenda'].includes(activeTab) && (
-        <div className="lg:hidden fixed bottom-32 right-8 z-40">
-          {activeTab === 'members' && user.role === UserRole.ADMIN && (
-            <button
-              onClick={() => { setEditingMember(null); setIsMemberModalOpen(true); }}
-              className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
-              title="Novo Membro"
-            >
-              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-            </button>
-          )}
-          {(activeTab === 'overview' || activeTab === 'finances') && (user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
-            <button
-              onClick={() => { setEditingTx(null); setIsTxModalOpen(true); }}
-              className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
-              title="Nova Transação"
-            >
-              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </button>
-          )}
-          {activeTab === 'agenda' && (
-            <button
-              onClick={() => { setEditingEvent(null); setIsEventModalOpen(true); }}
-              className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
-              title="Novo Evento"
-            >
-              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </button>
-          )}
-        </div>
-      )}
+      {
+        ['overview', 'finances', 'members', 'agenda'].includes(activeTab) && (
+          <div className="lg:hidden fixed bottom-32 right-8 z-40">
+            {activeTab === 'members' && user.role === UserRole.ADMIN && (
+              <button
+                onClick={() => { setEditingMember(null); setIsMemberModalOpen(true); }}
+                className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
+                title="Novo Membro"
+              >
+                <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </button>
+            )}
+            {(activeTab === 'overview' || activeTab === 'finances') && (user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
+              <button
+                onClick={() => { setEditingTx(null); setIsTxModalOpen(true); }}
+                className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
+                title="Nova Transação"
+              >
+                <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </button>
+            )}
+            {activeTab === 'agenda' && (
+              <button
+                onClick={() => { setEditingEvent(null); setIsEventModalOpen(true); }}
+                className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
+                title="Novo Evento"
+              >
+                <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )
+      }
 
       <nav className="lg:hidden fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[32px] z-40 print:hidden safe-area-bottom px-2 h-24">
         <div className="grid grid-cols-5 h-full items-center">
@@ -3201,6 +3454,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </button>
         </div>
       </nav>
-    </div>
+    </div >
   );
 };

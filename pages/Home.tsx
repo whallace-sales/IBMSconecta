@@ -1,13 +1,14 @@
 
 import React, { useEffect, useState } from 'react';
-import { Post } from '../types';
+import { Post, ChurchInfo } from '../types';
 import { getPosts } from '../services/api';
 
 interface HomeProps {
   onNavigate: (view: 'home' | 'blog' | 'login' | 'dashboard' | 'post-detail', postId?: string) => void;
+  churchInfo: ChurchInfo;
 }
 
-export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
+export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
   const [latestPosts, setLatestPosts] = useState<Post[]>([]);
 
   useEffect(() => {
@@ -28,6 +29,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           />
         </div>
         <div className="relative z-10 text-center px-4 max-w-3xl">
+          <div className="flex justify-center mb-8">
+            <div className="bg-white p-4 rounded-3xl shadow-2xl shadow-indigo-500/50 transform hover:scale-110 transition duration-500">
+              <img src={churchInfo.logoUrl || '/logo.png'} className="h-24 w-auto object-contain" alt="Logo" />
+            </div>
+          </div>
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">Uma Família para Pertencer</h1>
           <p className="text-xl md:text-2xl mb-8 text-gray-200">Vivendo o evangelho de Cristo, servindo à comunidade e transformando vidas através do amor e da fé.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

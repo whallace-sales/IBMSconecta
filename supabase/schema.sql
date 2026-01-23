@@ -70,13 +70,15 @@ create policy "categories_admin_all" on public.categories for all using (
 );
 
 -- Initial Categories Seed
-insert into public.categories (name, color) values
-  ('Dízimos', 'indigo'),
-  ('Ofertas', 'emerald'),
-  ('Infraestrutura', 'amber'),
-  ('Utilidades', 'blue'),
-  ('Manutenção', 'rose'),
-  ('Missões', 'teal')
+insert into public.categories (name, color, type) values
+  ('Dízimos', 'indigo', 'INCOME'),
+  ('Ofertas', 'emerald', 'INCOME'),
+  ('Aluguel', 'rose', 'EXPENSE'),
+  ('Caesb', 'blue', 'EXPENSE'),
+  ('Energia', 'amber', 'EXPENSE'),
+  ('Utilidades', 'blue', 'EXPENSE'),
+  ('Manutenção', 'slate', 'EXPENSE'),
+  ('Missões', 'teal', 'EXPENSE')
 on conflict do nothing;
 
 -- -----------------------------------------------------------------------------

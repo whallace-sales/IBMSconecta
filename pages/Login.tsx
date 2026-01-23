@@ -1,14 +1,15 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { User } from '../types';
+import { User, ChurchInfo } from '../types';
 
 interface LoginProps {
   onLogin: (user?: User) => void;
   onBack: () => void;
+  churchInfo: ChurchInfo;
 }
 
-export const Login: React.FC<LoginProps> = ({ onBack }) => {
+export const Login: React.FC<LoginProps> = ({ onBack, churchInfo }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -61,13 +62,11 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="bg-white w-full max-w-md p-10 rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100">
         <div className="text-center mb-10">
-          <div className="bg-indigo-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-200">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+          <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-slate-200/50 border border-slate-50 overflow-hidden transform hover:scale-105 transition duration-500">
+            <img src={churchInfo.logoUrl || '/logo.png'} className="w-20 h-20 object-contain" alt="Logo" />
           </div>
           <h1 className="text-3xl font-black text-slate-900 mb-2">Acesso Restrito</h1>
-          <p className="text-slate-500 font-medium">Gestão Administrativa</p>
+          <p className="text-slate-500 font-medium">{churchInfo.name}</p>
         </div>
 
         {error && (
@@ -130,14 +129,19 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-slate-900 hover:bg-indigo-700 text-white font-bold py-5 rounded-2xl transition-all shadow-lg transform active:scale-[0.98] disabled:opacity-75 disabled:cursor-wait flex justify-center items-center"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-5 rounded-2xl transition-all shadow-lg transform active:scale-[0.98] disabled:opacity-75 disabled:cursor-wait flex justify-center items-center gap-2"
           >
             {loading ? (
               <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-            ) : 'Entrar no Painel'}
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                Acessar o Sistema
+              </>
+            )}
           </button>
         </form>
 
