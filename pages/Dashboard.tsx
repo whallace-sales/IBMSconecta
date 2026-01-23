@@ -125,9 +125,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   // Estados de Modais
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [isDuplicatingTx, setIsDuplicatingTx] = useState(false);
+  const [originalTxDescription, setOriginalTxDescription] = useState('');
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'monthList' | 'weekList'>('month');
+  const [calendarCatFilter, setCalendarCatFilter] = useState<string>('ALL');
   const [isEventCatModalOpen, setIsEventCatModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -154,6 +158,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [editingEvCatId, setEditingEvCatId] = useState<string | null>(null);
+  const [evCatNameInput, setEvCatNameInput] = useState('');
+  const [newEvCatNameInput, setNewEvCatNameInput] = useState('');
+
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   // Estado de Submissão Global
@@ -545,12 +553,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       if (closeAfter) {
         setIsTxModalOpen(false);
+        setIsDuplicatingTx(false);
+        setOriginalTxDescription('');
       } else {
         e.currentTarget.reset();
         setTxFiles([]);
         setAttachedUrls([]);
+        setIsDuplicatingTx(false);
+        setOriginalTxDescription('');
         const currentType = editingTx?.type || 'INCOME';
-        setEditingTx({ type: currentType, amount: 0, date: new Date().toISOString().split('T')[0], category: '', description: '' } as Transaction);
+        setEditingTx({ type: currentType, amount: 0, date: new Date().toISOString().split('T')[0], category: '', description: '', costCenter: '' } as Transaction);
       }
       fetchData();
     } catch (error: any) {
@@ -642,8 +654,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               baptism_date: formData.get('baptismDate') as string || null,
               is_baptized: formData.get('isBaptized') === 'true',
               phone2: formData.get('phone2') as string,
-              doc1: formData.get('doc1') as string,
-              doc2: formData.get('doc2') as string,
               address_number: formData.get('addressNumber') as string,
               country: formData.get('country') as string,
               categories: formData.get('categories') as string,
@@ -1140,9 +1150,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   };
 
   const handleDeleteEventCat = async (id: string) => {
-    if (confirm('Deseja realmente excluir esta categoria? Eventos vinculados ficarão sem categoria.')) {
-      await supabase.from('event_categories').delete().eq('id', id);
-      fetchData();
+    if (confirm('Deseja realmente excluir esta categoria? Eventos vinculados a ela ficarão sem categoria.')) {
+      try {
+        const { error } = await supabase.from('event_categories').delete().eq('id', id);
+        if (error) throw error;
+        if (calendarCatFilter === id) setCalendarCatFilter('ALL');
+        fetchData();
+      } catch (error: any) {
+        alert('Erro ao excluir categoria: ' + error.message);
+      }
     }
   };
 
@@ -1790,7 +1806,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                               <td className="px-6 py-4">
                                 <div className="flex justify-center gap-3 transition">
                                   <button onClick={() => { setEditingTx(t); setIsTxModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Editar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                                  <button onClick={() => { setEditingTx({ ...t, id: Math.random().toString(36).substr(2, 9) }); setIsTxModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Duplicar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg></button>
+                                  <button onClick={() => {
+                                    setOriginalTxDescription(t.description);
+                                    setIsDuplicatingTx(true);
+                                    const newDescription = t.description.includes(' - Cópia') ? t.description : t.description + ' - Cópia';
+                                    setEditingTx({ ...t, id: undefined, description: newDescription });
+                                    setIsTxModalOpen(true);
+                                  }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Duplicar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg></button>
                                   <button onClick={() => handleDeleteTx(t.id)} className="p-1.5 text-slate-400 hover:text-rose-600 transition" title="Excluir"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                                 </div>
                               </td>
@@ -1817,6 +1839,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             <span className="text-[9px] bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-black uppercase tracking-widest">{t.category}</span>
                             <div className="flex gap-4">
                               <button onClick={() => { setEditingTx(t); setIsTxModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase">Editar</button>
+                              <button onClick={() => {
+                                setOriginalTxDescription(t.description);
+                                setIsDuplicatingTx(true);
+                                const newDescription = t.description.includes(' - Cópia') ? t.description : t.description + ' - Cópia';
+                                setEditingTx({ ...t, id: undefined, description: newDescription });
+                                setIsTxModalOpen(true);
+                              }} className="text-indigo-600 font-black text-[10px] uppercase">Duplicar</button>
                               <button onClick={() => handleDeleteTx(t.id)} className="text-red-500 font-black text-[10px] uppercase">Excluir</button>
                             </div>
                           </div>
@@ -2010,7 +2039,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             </td>
                             <td className="px-8 py-4 text-center">
                               <div className="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => { setEditingMember(u); setIsMemberModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                                <button onClick={() => {
+                                  setViewingMember(u);
+                                  setEditingMember(u);
+                                  setViewingMemberSubTab('edit');
+                                  setAvatarPreview(null);
+                                  setTempAvatarFile(null);
+                                  setIsAvatarRemoved(false);
+                                }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
                                 <button onClick={() => handleDeleteMember(u.id)} className="text-red-600 font-black text-[10px] uppercase hover:underline">Remover</button>
                               </div>
                             </td>
@@ -2037,7 +2073,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           </div>
                         </div>
                         <div className="flex flex-col gap-2">
-                          <button onClick={() => { setEditingMember(u); setIsMemberModalOpen(true); }} className="text-indigo-600 font-black text-[9px] uppercase">Editar</button>
+                          <button onClick={() => {
+                            setViewingMember(u);
+                            setEditingMember(u);
+                            setViewingMemberSubTab('edit');
+                            setAvatarPreview(null);
+                            setTempAvatarFile(null);
+                            setIsAvatarRemoved(false);
+                          }} className="text-indigo-600 font-black text-[9px] uppercase">Editar</button>
                           <button onClick={() => handleDeleteMember(u.id)} className="text-red-500 font-black text-[9px] uppercase">Remover</button>
                         </div>
                       </div>
@@ -2246,99 +2289,261 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <div className="flex flex-col lg:flex-row gap-8">
                 {/* Calendar Main Area */}
                 <div className="flex-grow bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                      <h3 className="text-3xl font-black text-slate-900 tracking-tight">
-                        {selectedCalendarDate.toLocaleString('pt-BR', { month: 'long' })}
-                        <span className="text-indigo-600 ml-2">{selectedCalendarDate.getFullYear()}</span>
-                      </h3>
-                      <div className="flex bg-slate-100 rounded-2xl p-1 shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex gap-2 mr-2">
                         <button
-                          onClick={() => setSelectedCalendarDate(new Date(selectedCalendarDate.setMonth(selectedCalendarDate.getMonth() - 1)))}
-                          className="p-2 hover:bg-white rounded-xl transition text-slate-600"
+                          onClick={() => {
+                            const newDate = new Date(selectedCalendarDate);
+                            if (calendarViewMode === 'weekList') {
+                              newDate.setDate(newDate.getDate() - 7);
+                            } else {
+                              newDate.setMonth(newDate.getMonth() - 1);
+                            }
+                            setSelectedCalendarDate(newDate);
+                          }}
+                          className="bg-slate-900 text-white p-2.5 rounded-lg hover:bg-slate-800 transition"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
                         </button>
                         <button
-                          onClick={() => setSelectedCalendarDate(new Date(selectedCalendarDate.setMonth(selectedCalendarDate.getMonth() + 1)))}
-                          className="p-2 hover:bg-white rounded-xl transition text-slate-600"
+                          onClick={() => {
+                            const newDate = new Date(selectedCalendarDate);
+                            if (calendarViewMode === 'weekList') {
+                              newDate.setDate(newDate.getDate() + 7);
+                            } else {
+                              newDate.setMonth(newDate.getMonth() + 1);
+                            }
+                            setSelectedCalendarDate(newDate);
+                          }}
+                          className="bg-slate-900 text-white p-2.5 rounded-lg hover:bg-slate-800 transition"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                        <button
+                          onClick={() => setSelectedCalendarDate(new Date())}
+                          className="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition"
+                        >
+                          Hoje
                         </button>
                       </div>
-                      <button
-                        onClick={() => setSelectedCalendarDate(new Date())}
-                        className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition"
-                      >
-                        Hoje
-                      </button>
+
+                      <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                        {calendarViewMode === 'weekList' ? (
+                          (() => {
+                            const start = new Date(selectedCalendarDate);
+                            start.setDate(start.getDate() - start.getDay());
+                            const end = new Date(start);
+                            end.setDate(end.getDate() + 6);
+                            return `${start.getDate()} – ${end.getDate()} de ${start.toLocaleString('pt-BR', { month: 'short' })}. de ${start.getFullYear()}`;
+                          })()
+                        ) : (
+                          <>
+                            {selectedCalendarDate.toLocaleString('pt-BR', { month: 'long' })}
+                            <span className="text-indigo-600 ml-1">{selectedCalendarDate.getFullYear()}</span>
+                          </>
+                        )}
+                      </h3>
                     </div>
+
+                    <div className="flex flex-wrap items-center gap-4 bg-slate-100 p-1.5 rounded-2xl">
+                      <div className="flex items-center gap-1 bg-slate-900/5 p-1 rounded-xl">
+                        <button
+                          onClick={() => setCalendarViewMode('month')}
+                          className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${calendarViewMode === 'month' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:text-slate-900'}`}
+                        >
+                          Mês
+                        </button>
+                        <button
+                          onClick={() => setCalendarViewMode('monthList')}
+                          className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${calendarViewMode === 'monthList' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:text-slate-900'}`}
+                        >
+                          Lista mensal
+                        </button>
+                        <button
+                          onClick={() => setCalendarViewMode('weekList')}
+                          className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${calendarViewMode === 'weekList' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:text-slate-900'}`}
+                        >
+                          Lista semanal
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                        <select
+                          value={calendarCatFilter}
+                          onChange={(e) => setCalendarCatFilter(e.target.value)}
+                          className="bg-transparent text-[10px] font-black uppercase tracking-widest text-slate-600 outline-none cursor-pointer pr-4"
+                        >
+                          <option value="ALL">Todas Categorias</option>
+                          {eventCategories.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
                     <button
                       onClick={() => { setEditingEvent(null); setIsEventModalOpen(true); }}
-                      className="bg-sky-500 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-sky-100 hover:bg-sky-600 transition transform active:scale-95 flex items-center gap-2"
+                      className="hidden sm:flex bg-sky-500 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-sky-100 hover:bg-sky-600 transition transform active:scale-95 items-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
                       Adicionar
                     </button>
                   </div>
 
-                  {/* Calendar Grid */}
-                  <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-3xl overflow-hidden">
-                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                      <div key={day} className="bg-slate-50 py-4 text-center">
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{day}</span>
-                      </div>
-                    ))}
-                    {(() => {
-                      const daysInMonth = new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth() + 1, 0).getDate();
-                      const firstDayOfMonth = new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth(), 1).getDay();
-                      const days = [];
+                  {/* Calendar Content */}
+                  {calendarViewMode === 'month' && (
+                    <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-3xl overflow-hidden">
+                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                        <div key={day} className="bg-slate-50 py-4 text-center">
+                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{day}</span>
+                        </div>
+                      ))}
+                      {(() => {
+                        const daysInMonth = new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth() + 1, 0).getDate();
+                        const firstDayOfMonth = new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth(), 1).getDay();
+                        const days = [];
 
-                      // Empty cells for first week
-                      for (let i = 0; i < firstDayOfMonth; i++) {
-                        days.push(<div key={`empty-${i}`} className="bg-white/50 h-32 lg:h-40 p-4"></div>);
-                      }
+                        // Empty cells for first week
+                        for (let i = 0; i < firstDayOfMonth; i++) {
+                          days.push(<div key={`empty-${i}`} className="bg-white/50 h-32 lg:h-40 p-4 border-slate-100"></div>);
+                        }
 
-                      // Month days
-                      for (let d = 1; d <= daysInMonth; d++) {
-                        const dateStr = `${selectedCalendarDate.getFullYear()}-${String(selectedCalendarDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                        const dayEvents = events.filter(e => e.startDate === dateStr);
-                        const isToday = new Date().toISOString().split('T')[0] === dateStr;
+                        // Month days
+                        for (let d = 1; d <= daysInMonth; d++) {
+                          const dateStr = `${selectedCalendarDate.getFullYear()}-${String(selectedCalendarDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                          let dayEvents = events.filter(e => e.startDate === dateStr);
+                          if (calendarCatFilter !== 'ALL') {
+                            dayEvents = dayEvents.filter(e => e.categoryId === calendarCatFilter);
+                          }
+                          const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
-                        days.push(
-                          <div
-                            key={d}
-                            onClick={(e) => {
-                              if (e.target === e.currentTarget) {
-                                setEditingEvent({ startDate: dateStr, endDate: dateStr, isAllDay: false, isPrivate: false, title: '', repeat: 'NONE' } as any);
-                                setIsEventModalOpen(true);
-                              }
-                            }}
-                            className={`bg-white h-32 lg:h-40 p-4 hover:bg-slate-50 transition relative group border-t border-l border-slate-100 cursor-pointer ${isToday ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
-                          >
-                            <span className={`text-sm font-black ${isToday ? 'text-indigo-600' : 'text-slate-900'} mb-2 block`}>{d}</span>
-                            <div className="space-y-1.5 overflow-y-auto max-h-[calc(100%-2rem)] scrollbar-hide">
-                              {dayEvents.map(e => {
-                                const cat = eventCategories.find(c => c.id === e.categoryId);
-                                return (
-                                  <div
-                                    key={e.id}
-                                    onClick={() => { setEditingEvent(e); setIsEventModalOpen(true); }}
-                                    className="p-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight text-white cursor-pointer hover:brightness-90 transition truncate shadow-sm"
-                                    style={{ backgroundColor: cat?.color || '#6366f1' }}
-                                    title={e.title}
-                                  >
-                                    {e.startTime ? `${e.startTime.substring(0, 5)} ` : ''}{e.title}
-                                  </div>
-                                );
-                              })}
+                          days.push(
+                            <div
+                              key={d}
+                              onClick={(e) => {
+                                if (e.target === e.currentTarget) {
+                                  setEditingEvent({ startDate: dateStr, endDate: dateStr, isAllDay: false, isPrivate: false, title: '', repeat: 'NONE' } as any);
+                                  setIsEventModalOpen(true);
+                                }
+                              }}
+                              className={`bg-white h-32 lg:h-40 p-4 hover:bg-slate-50 transition relative group border-t border-l border-slate-100 cursor-pointer ${isToday ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
+                            >
+                              <span className={`text-sm font-black ${isToday ? 'text-indigo-600' : 'text-slate-900'} mb-2 block`}>{d}</span>
+                              <div className="space-y-1.5 overflow-y-auto max-h-[calc(100%-2rem)] scrollbar-hide">
+                                {dayEvents.map(e => {
+                                  const cat = eventCategories.find(c => c.id === e.categoryId);
+                                  return (
+                                    <div
+                                      key={e.id}
+                                      onClick={() => { setEditingEvent(e); setIsEventModalOpen(true); }}
+                                      className="p-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight text-white cursor-pointer hover:brightness-90 transition truncate shadow-sm"
+                                      style={{ backgroundColor: cat?.color || '#6366f1' }}
+                                      title={e.title}
+                                    >
+                                      {e.startTime ? `${e.startTime.substring(0, 5)} ` : ''}{e.title}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      }
-                      return days;
-                    })()}
-                  </div>
+                          );
+                        }
+                        return days;
+                      })()}
+                    </div>
+                  )}
+
+                  {(calendarViewMode === 'monthList' || calendarViewMode === 'weekList') && (
+                    <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
+                      {(() => {
+                        let filteredEvents = events;
+                        if (calendarCatFilter !== 'ALL') {
+                          filteredEvents = filteredEvents.filter(e => e.categoryId === calendarCatFilter);
+                        }
+
+                        if (calendarViewMode === 'monthList') {
+                          filteredEvents = filteredEvents.filter(e => {
+                            const d = new Date(e.startDate);
+                            return d.getMonth() === selectedCalendarDate.getMonth() && d.getFullYear() === selectedCalendarDate.getFullYear();
+                          });
+                        } else {
+                          const startOfWeek = new Date(selectedCalendarDate);
+                          startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+                          startOfWeek.setHours(0, 0, 0, 0);
+
+                          const endOfWeek = new Date(startOfWeek);
+                          endOfWeek.setDate(endOfWeek.getDate() + 6);
+                          endOfWeek.setHours(23, 59, 59, 999);
+
+                          filteredEvents = events.filter(e => {
+                            const d = new Date(e.startDate);
+                            return d >= startOfWeek && d <= endOfWeek;
+                          });
+                        }
+
+                        // Group by day
+                        const grouped: { [key: string]: typeof events } = {};
+                        filteredEvents.forEach(e => {
+                          if (!grouped[e.startDate]) grouped[e.startDate] = [];
+                          grouped[e.startDate].push(e);
+                        });
+
+                        const sortedDays = Object.keys(grouped).sort();
+
+                        if (sortedDays.length === 0) {
+                          return (
+                            <div className="p-20 text-center bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200">
+                              <p className="text-slate-400 font-bold italic">Nenhum evento agendado neste período.</p>
+                            </div>
+                          );
+                        }
+
+                        return sortedDays.map(dateStr => {
+                          const dayEvents = grouped[dateStr].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+                          const d = new Date(dateStr);
+                          const dayName = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+                          const dateReadable = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+                          return (
+                            <div key={dateStr} className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+                              <div className="bg-slate-50 px-6 py-3 border-b border-slate-100">
+                                <h5 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">
+                                  {dayName}, {dateReadable}
+                                </h5>
+                              </div>
+                              <div className="divide-y divide-slate-50 bg-white">
+                                {dayEvents.map(e => {
+                                  const cat = eventCategories.find(c => c.id === e.categoryId);
+                                  return (
+                                    <div
+                                      key={e.id}
+                                      onClick={() => { setEditingEvent(e); setIsEventModalOpen(true); }}
+                                      className="px-8 py-4 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer group"
+                                    >
+                                      <div className="flex items-center gap-6">
+                                        <div className="w-24 text-[11px] font-bold text-slate-400">
+                                          {e.startTime ? `${e.startTime.substring(0, 5)}${e.endTime ? ` - ${e.endTime.substring(0, 5)}` : ''}` : 'Dia todo'}
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat?.color || '#6366f1' }}></div>
+                                          <span className="text-sm font-bold text-slate-700 tracking-tight">{e.title}</span>
+                                        </div>
+                                      </div>
+                                      <div className="opacity-0 group-hover:opacity-100 transition">
+                                        <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  )}
                 </div>
 
                 {/* Sidebar Categories */}
@@ -2346,37 +2551,100 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
                     <div className="flex items-center justify-between mb-8">
                       <h4 className="text-lg font-black text-slate-800 tracking-tight">Categorias</h4>
-                      <button
-                        onClick={() => setIsEventCatModalOpen(true)}
-                        className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
-                      >
-                        Nova
-                      </button>
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex gap-2 mb-6">
+                    <div className="space-y-4">
+                      {/* Add Category Section */}
+                      <div className="space-y-3">
                         <input
+                          value={newEvCatNameInput}
+                          onChange={(e) => setNewEvCatNameInput(e.target.value)}
                           placeholder="Nova categoria..."
-                          className="flex-grow px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#20b2aa] transition shadow-sm"
                         />
-                        <button className="bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Add</button>
+                        <button
+                          onClick={async () => {
+                            if (!newEvCatNameInput) return;
+                            try {
+                              const { error } = await supabase.from('event_categories').insert([{ name: newEvCatNameInput, color: '#6366f1' }]);
+                              if (error) throw error;
+                              setNewEvCatNameInput('');
+                              fetchData();
+                            } catch (error: any) {
+                              alert('Erro ao adicionar categoria: ' + error.message);
+                            }
+                          }}
+                          className="w-full bg-[#20b2aa] text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition shadow-md"
+                        >
+                          Adicionar Categoria
+                        </button>
                       </div>
 
-                      {eventCategories.map(cat => (
-                        <div key={cat.id} className="flex items-center justify-between group">
-                          <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }}></div>
-                            <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">{cat.name}</span>
+                      <div className="pt-4 space-y-2 border-t border-slate-50">
+                        {eventCategories.map(cat => (
+                          <div key={cat.id} className="relative group flex items-center gap-2">
+                            {editingEvCatId === cat.id ? (
+                              <div className="flex-grow flex items-center gap-2">
+                                <input
+                                  autoFocus
+                                  value={evCatNameInput}
+                                  onChange={(e) => setEvCatNameInput(e.target.value)}
+                                  className="flex-grow px-4 py-3 bg-white border border-[#20b2aa] rounded-xl text-[10px] font-black uppercase outline-none"
+                                />
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const { error } = await supabase.from('event_categories').update({ name: evCatNameInput }).eq('id', cat.id);
+                                      if (error) throw error;
+                                      setEditingEvCatId(null);
+                                      fetchData();
+                                    } catch (error: any) {
+                                      alert('Erro ao atualizar: ' + error.message);
+                                    }
+                                  }}
+                                  className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                                <button
+                                  onClick={() => setEditingEvCatId(null)}
+                                  className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => setCalendarCatFilter(cat.id === calendarCatFilter ? 'ALL' : cat.id)}
+                                  className={`flex-grow px-6 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-left transition-all border ${calendarCatFilter === cat.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg scale-[1.02]' : 'bg-white text-slate-900 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}
+                                >
+                                  {cat.name}
+                                </button>
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-all p-1 rounded-lg">
+                                  <button
+                                    onClick={() => {
+                                      setEditingEvCatId(cat.id);
+                                      setEvCatNameInput(cat.name);
+                                    }}
+                                    className={`p-1 px-2 transition ${calendarCatFilter === cat.id ? 'text-white/70 hover:text-white' : 'text-slate-400 hover:text-indigo-600'}`}
+                                    title="Editar"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEventCat(cat.id)}
+                                    className={`p-1 px-2 transition ${calendarCatFilter === cat.id ? 'text-white/70 hover:text-white' : 'text-slate-400 hover:text-rose-500'}`}
+                                    title="Excluir"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                  </button>
+                                </div>
+                              </>
+                            )}
                           </div>
-                          <button
-                            onClick={() => handleDeleteEventCat(cat.id)}
-                            className="p-1 opacity-0 group-hover:opacity-100 transition text-slate-300 hover:text-rose-500"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -2880,10 +3148,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               {/* Modal Header */}
               <div className={`px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white`}>
                 <h3 className={`text-xl font-bold tracking-tight ${editingTx?.type === 'EXPENSE' ? 'text-[#f43f5e]' : 'text-[#20b2aa]'}`}>
-                  {editingTx?.id ? (editingTx.type === 'INCOME' ? 'Editar receita' : 'Editar despesa') : (editingTx?.type === 'INCOME' ? 'Criar receita' : 'Criar despesa')}
+                  {isDuplicatingTx ? (
+                    <>Criar {editingTx?.type === 'INCOME' ? 'receita' : 'despesa'} <span className="text-xs font-normal opacity-70 italic">( cópia de {originalTxDescription} )</span></>
+                  ) : (
+                    editingTx?.id ? (editingTx.type === 'INCOME' ? 'Editar receita' : 'Editar despesa') : (editingTx?.type === 'INCOME' ? 'Criar receita' : 'Criar despesa')
+                  )}
                 </h3>
                 <button
-                  onClick={() => setIsTxModalOpen(false)}
+                  onClick={() => {
+                    setIsTxModalOpen(false);
+                    setIsDuplicatingTx(false);
+                    setOriginalTxDescription('');
+                  }}
                   className="text-slate-400 hover:text-slate-600 transition p-2"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -2968,8 +3244,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   </div>
 
                   <div className="space-y-2">
+                    <label className="block text-sm font-bold text-slate-900">Centro de Custo</label>
+                    <input name="cost_center" defaultValue={editingTx?.costCenter} placeholder="Ex: Sede, Missões..." className={`w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700 focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`} />
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="block text-sm font-bold text-slate-900">Doc nº</label>
-                    <input name="doc_number" defaultValue={editingTx?.docNumber} placeholder="Opcional" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700" />
+                    <input name="doc_number" defaultValue={editingTx?.docNumber} placeholder="Opcional" className={`w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700 focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`} />
                   </div>
                 </div>
 
@@ -3050,6 +3331,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
               {/* Modal Footer */}
               <div className="p-8 border-t border-slate-100 bg-white flex justify-end gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTxModalOpen(false);
+                    setIsDuplicatingTx(false);
+                    setOriginalTxDescription('');
+                  }}
+                  className="px-8 py-3.5 rounded-full font-bold text-sm text-slate-500 hover:bg-slate-50 transition active:scale-[0.98]"
+                >
+                  Cancelar
+                </button>
                 <button
                   type="button"
                   onClick={(e: any) => {
