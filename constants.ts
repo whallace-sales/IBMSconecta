@@ -2,20 +2,20 @@
 import { UserRole, Post, Transaction, User, Category, ChurchInfo } from './types';
 
 export const INITIAL_CHURCH_INFO: ChurchInfo = {
-  name: 'IgrejaConecta',
-  logoUrl: '', // String vazia usará o ícone padrão
-  address: 'Rua da Fé, 123 - Centro',
-  phone: '(11) 99999-9999',
-  email: 'contato@igrejaconecta.com.br'
+  name: 'IBMS',
+  logoUrl: '/logo.png',
+  address: 'Planaltina-DF',
+  phone: '(61) 99999-9999',
+  email: 'contato@ibms.com.br'
 };
 
 export const INITIAL_CATEGORIES: Category[] = [
-  { id: '1', name: 'Dízimos', color: 'indigo' },
-  { id: '2', name: 'Ofertas', color: 'emerald' },
-  { id: '3', name: 'Infraestrutura', color: 'amber' },
-  { id: '4', name: 'Utilidades', color: 'blue' },
-  { id: '5', name: 'Manutenção', color: 'rose' },
-  { id: '6', name: 'Missões', color: 'teal' },
+  { id: '1', name: 'Dízimos', color: 'indigo', type: 'INCOME' },
+  { id: '2', name: 'Ofertas', color: 'emerald', type: 'INCOME' },
+  { id: '3', name: 'Infraestrutura', color: 'amber', type: 'EXPENSE' },
+  { id: '4', name: 'Utilidades', color: 'blue', type: 'EXPENSE' },
+  { id: '5', name: 'Manutenção', color: 'rose', type: 'EXPENSE' },
+  { id: '6', name: 'Missões', color: 'teal', type: 'INCOME' },
 ];
 
 export const MOCK_POSTS: Post[] = [

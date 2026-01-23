@@ -962,13 +962,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     return (
       <button
         onClick={() => setActiveTab(id)}
-        className={`w-full flex items-center gap-4 px-6 py-4 transition-all duration-200 border-r-4 ${activeTab === id
-          ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold'
-          : 'border-transparent text-slate-500 hover:bg-slate-50'
-          }`}
+        className={`w-full flex items-center gap-5 px-8 py-5 md:px-6 md:py-4 transition-all duration-200 border-r-4 ${activeTab === id
+          ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-black'
+          : 'border-transparent text-slate-500 hover:bg-slate-50 font-bold'
+          } text-xl md:text-sm`}
       >
-        {icon}
-        {label}
+        <div className={`${activeTab === id ? 'scale-110' : 'scale-100'} transition-transform duration-200 flex-shrink-0 [&_svg]:w-8 [&_svg]:h-8 md:[&_svg]:w-6 md:[&_svg]:h-6`}>
+          {icon}
+        </div>
+        <span className="tracking-tight truncate">{label}</span>
       </button>
     );
   };
@@ -1010,24 +1012,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       {/* Sidebar */}
       <aside className="w-72 bg-white border-r border-slate-200 flex flex-col hidden lg:flex print:hidden">
         <div className="p-8 border-b border-slate-100 flex items-center gap-3">
-          {churchInfo.logoUrl ? (
-            <img src={churchInfo.logoUrl} className="w-10 h-10 rounded-xl object-cover border border-slate-100" alt="Logo" />
-          ) : (
-            <div className="bg-indigo-600 p-2 rounded-xl text-white">
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-            </div>
-          )}
+          <div className="bg-transparent">
+            <img src="/logo.png" className="w-12 h-auto object-contain" alt="Logo IBMS" />
+          </div>
           <span className="font-bold text-xl text-slate-900 tracking-tight truncate">{churchInfo.name}</span>
         </div>
         <nav className="flex-grow pt-8 overflow-y-auto">
-          <SidebarItem id="overview" label="Início" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
-          <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-          <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
-          <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
-          <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
-          <SidebarItem id="agenda" label="Agenda" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
-          <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
-          <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+          <SidebarItem id="overview" label="Início" icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
+          <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+          <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
+          <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
+          <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
+          <SidebarItem id="agenda" label="Agenda" icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+          <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
+          <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
         </nav>
         <div className="p-8 border-t border-slate-100">
           <button onClick={onLogout} className="w-full text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-2">
@@ -1045,42 +1043,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       )}
 
       {/* Mobile Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full w-80 bg-white border-r border-slate-200 flex flex-col z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed top-0 left-0 h-full w-[80%] max-w-[320px] bg-white border-r border-slate-200 flex flex-col z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {churchInfo.logoUrl ? (
-              <img src={churchInfo.logoUrl} className="w-10 h-10 rounded-xl object-cover border border-slate-100" alt="Logo" />
-            ) : (
-              <div className="bg-indigo-600 p-2 rounded-xl text-white">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-              </div>
-            )}
-            <span className="font-bold text-lg text-slate-900 tracking-tight truncate">{churchInfo.name}</span>
+          <div className="flex items-center gap-4">
+            <img src="/logo.png" className="w-16 h-auto object-contain" alt="Logo IBMS" />
+            <span className="font-extrabold text-xl text-slate-900 tracking-tighter truncate">{churchInfo.name}</span>
           </div>
           <button
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="p-2 hover:bg-slate-100 rounded-lg transition"
+            className="p-2.5 hover:bg-slate-100 rounded-2xl transition border border-slate-100"
           >
-            <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            <svg className="w-7 h-7 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
         <nav className="flex-grow pt-4 overflow-y-auto">
           <div onClick={() => setIsMobileSidebarOpen(false)}>
-            <SidebarItem id="overview" label="Início" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
-            <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-            <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
-            <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
-            <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
-            <SidebarItem id="agenda" label="Agenda" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
-            <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
-            <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+            <SidebarItem id="overview" label="Início" icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
+            <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+            <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
+            <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
+            <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
+            <SidebarItem id="agenda" label="Agenda" icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+            <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
+            <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg className="w-16 h-16 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
           </div>
         </nav>
 
-        <div className="p-6 border-t border-slate-100">
-          <button onClick={onLogout} className="w-full text-red-500 hover:text-red-700 font-bold transition flex items-center justify-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+        <div className="p-6 border-t border-slate-100 mt-auto">
+          <button onClick={onLogout} className="w-full text-red-500 hover:text-red-700 font-black text-lg transition flex items-center justify-center gap-3 py-4 bg-red-50 rounded-2xl shadow-sm active:scale-95 duration-150">
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             Sair do Painel
           </button>
         </div>
@@ -1092,10 +1084,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             {/* Hamburger Menu Button - Mobile Only */}
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden p-2 hover:bg-slate-100 rounded-lg transition"
+              className="lg:hidden p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition border border-slate-100"
             >
-              <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              <svg className="w-7 h-7 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
             <h2 className="text-lg md:text-2xl font-black text-slate-900">{tabTitles[activeTab]}</h2>
@@ -1113,34 +1105,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           {activeTab === 'overview' && (
             <div className="space-y-8 md:space-y-10 animate-slide-up">
               {/* Demographics Row */}
-              <div className="bg-white p-6 md:p-5 rounded-3xl md:rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-around gap-6 md:gap-6">
-                <div className="flex items-center gap-4 md:gap-4 w-full md:w-auto">
-                  <div className="bg-teal-50 w-14 h-14 md:w-12 md:h-12 rounded-xl md:rounded-xl flex items-center justify-center text-teal-600">
-                    <svg className="w-7 h-7 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              <div className="bg-white p-4 md:p-6 rounded-3xl md:rounded-[32px] border border-slate-100 shadow-sm grid grid-cols-2 md:flex md:flex-row items-center justify-around gap-4 md:gap-6">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="bg-teal-50 w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center text-teal-600 shadow-sm">
+                    <svg className="w-5 h-5 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-3xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.total}</h5>
-                    <p className="text-xs md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de pessoas</p>
+                    <h5 className="text-xl md:text-3xl font-black text-slate-800 tracking-tighter">{demographics.total}</h5>
+                    <p className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest">Total</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 md:gap-4 w-full md:w-auto">
-                  <div className="bg-sky-50 w-14 h-14 md:w-12 md:h-12 rounded-xl md:rounded-xl flex items-center justify-center text-sky-600">
-                    <svg className="w-7 h-7 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="bg-sky-50 w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center text-sky-600 shadow-sm">
+                    <svg className="w-5 h-5 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-3xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.menPercent}% <span className="text-slate-400 text-base md:text-sm font-medium">({demographics.men})</span></h5>
-                    <p className="text-xs md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de homens</p>
+                    <h5 className="text-xl md:text-3xl font-black text-slate-800 tracking-tighter">{demographics.menPercent}%</h5>
+                    <p className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest">Homens</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 md:gap-4 w-full md:w-auto">
-                  <div className="bg-pink-50 w-14 h-14 md:w-12 md:h-12 rounded-xl md:rounded-xl flex items-center justify-center text-pink-600">
-                    <svg className="w-7 h-7 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="bg-pink-50 w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center text-pink-600 shadow-sm">
+                    <svg className="w-5 h-5 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                   </div>
                   <div>
-                    <h5 className="text-3xl md:text-2xl font-black text-slate-800 tracking-tight">{demographics.womenPercent}% <span className="text-slate-400 text-base md:text-sm font-medium">({demographics.women})</span></h5>
-                    <p className="text-xs md:text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total de mulheres</p>
+                    <h5 className="text-xl md:text-3xl font-black text-slate-800 tracking-tighter">{demographics.womenPercent}%</h5>
+                    <p className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest">Mulheres</p>
                   </div>
                 </div>
               </div>
@@ -1149,21 +1141,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
                 {/* Coluna Esquerda - Financeiro */}
                 <div className="lg:col-span-7 space-y-6 md:space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                    <div className="bg-white p-7 md:p-8 rounded-3xl md:rounded-[32px] border-t-8 border-emerald-500 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-lg transition-shadow duration-300">
-                      <p className="text-xs md:text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em] mb-3 md:mb-2">Total Entradas</p>
-                      <p className="text-4xl md:text-3xl font-black text-emerald-600 tracking-tight">{formatCurrency(globalStats.income)}</p>
+                  <div className="grid grid-cols-2 gap-3 md:gap-6">
+                    <div className="bg-white p-4 md:p-8 rounded-3xl border-t-4 border-emerald-500 shadow-sm">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Entradas</p>
+                      <p className="text-xl md:text-4xl font-black text-emerald-600 tracking-tight">{formatCurrency(globalStats.income)}</p>
                     </div>
-                    <div className="bg-white p-7 md:p-8 rounded-3xl md:rounded-[32px] border-t-8 border-red-500 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-lg transition-shadow duration-300">
-                      <p className="text-xs md:text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em] mb-3 md:mb-2">Total Saídas</p>
-                      <p className="text-4xl md:text-3xl font-black text-red-600 tracking-tight">{formatCurrency(globalStats.expense)}</p>
+                    <div className="bg-white p-4 md:p-8 rounded-3xl border-t-4 border-red-500 shadow-sm">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Saídas</p>
+                      <p className="text-xl md:text-4xl font-black text-red-600 tracking-tight">{formatCurrency(globalStats.expense)}</p>
                     </div>
                   </div>
-                  <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-8 md:p-10 rounded-[40px] text-white shadow-[0_20px_40px_rgba(79,70,229,0.3)] relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700"></div>
+                  <div className="bg-indigo-600 p-5 md:p-10 rounded-3xl text-white shadow-lg relative overflow-hidden">
                     <div className="relative z-10">
-                      <p className="text-indigo-200 font-bold text-xs md:text-[10px] uppercase tracking-[0.2em] mb-3 md:mb-2">Saldo em Caixa Disponível</p>
-                      <p className="text-5xl md:text-6xl font-black tracking-tighter">{formatCurrency(globalStats.income - globalStats.expense)}</p>
+                      <p className="text-indigo-200 font-bold text-[10px] uppercase mb-1">Saldo em Caixa</p>
+                      <p className="text-3xl md:text-7xl font-black tracking-tighter">{formatCurrency(globalStats.income - globalStats.expense)}</p>
                     </div>
                   </div>
 
@@ -1223,24 +1214,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           const month = eventDate.toLocaleDateString('pt-BR', { month: 'short' });
 
                           return (
-                            <div key={event.id} onClick={() => { setEditingEvent(event); setIsEventModalOpen(true); }} className="bg-white p-6 md:p-4 rounded-[32px] md:rounded-2xl border border-slate-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-50 transition-all duration-300 group cursor-pointer">
+                            <div key={event.id} onClick={() => { setEditingEvent(event); setIsEventModalOpen(true); }} className="bg-white p-3 md:p-4 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:shadow-md transition-all duration-300 group cursor-pointer">
                               <div className="flex gap-4 md:gap-5">
-                                <div className="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 min-w-[85px] md:min-w-[65px] border border-slate-100 relative overflow-hidden">
-                                  <div className="absolute top-0 left-0 w-full h-1.5" style={{ backgroundColor: eventCat?.color || '#6366f1' }}></div>
-                                  <span className="text-4xl md:text-2xl font-black text-slate-800 tracking-tighter">{day}</span>
-                                  <span className="text-xs md:text-[9px] font-black text-indigo-500 uppercase tracking-widest">{month}</span>
+                                <div className="flex flex-col items-center justify-center bg-slate-50 rounded-xl p-2 min-w-[55px] md:min-w-[65px] border border-slate-100 relative overflow-hidden">
+                                  <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: eventCat?.color || '#6366f1' }}></div>
+                                  <span className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter">{day}</span>
+                                  <span className="text-[10px] md:text-[9px] font-black text-indigo-500 uppercase">{month}</span>
                                 </div>
                                 <div className="flex-grow">
                                   <div className="flex items-start justify-between gap-2">
                                     <h4 className="font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition text-lg md:text-sm">{event.title}</h4>
                                     {eventCat && (
                                       <div
-                                        className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
+                                        className="w-4 h-4 rounded-full flex-shrink-0 mt-1"
                                         style={{ backgroundColor: eventCat.color }}
                                       />
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-3 mt-2 text-sm md:text-[10px] text-slate-500">
+                                  <div className="flex items-center gap-4 mt-2 text-base md:text-[10px] text-slate-500">
                                     {event.startTime && (
                                       <span className="flex items-center gap-1">
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -1268,19 +1259,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               {/* Aniversariantes do Mês */}
               <div className="bg-white p-6 md:p-8 rounded-3xl md:rounded-[32px] border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="bg-pink-100 p-2 rounded-xl text-pink-600">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.464 15.05a1 1 0 010 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 0z" /></svg>
+                  <div className="bg-pink-100 p-3 rounded-xl text-pink-600">
+                    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.464 15.05a1 1 0 010 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 0z" /></svg>
                   </div>
-                  <h3 className="text-xl md:text-xl font-black text-slate-800 tracking-tight">Aniversariantes do Mês</h3>
+                  <h3 className="text-2xl md:text-xl font-black text-slate-800 tracking-tight">Aniversariantes do Mês</h3>
                 </div>
                 {birthdayMembers.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {birthdayMembers.map(m => (
-                      <div key={m.id} className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 flex items-center gap-4 hover:shadow-md transition">
-                        <img src={m.avatarUrl || `https://i.pravatar.cc/100?u=${m.id}`} className="w-14 h-14 rounded-full border-2 border-white shadow-sm" alt="Membro" />
+                      <div key={m.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-3 hover:shadow-md transition">
+                        <img src={m.avatarUrl || `https://i.pravatar.cc/100?u=${m.id}`} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" alt="Membro" />
                         <div>
-                          <p className="font-bold text-slate-900 leading-tight">{m.name}</p>
-                          <p className="text-[10px] text-indigo-600 font-black uppercase mt-1 tracking-widest">Dia {m.birthDate!.split('-')[2]}</p>
+                          <p className="font-bold text-slate-900 leading-tight text-sm md:text-sm">{m.name}</p>
+                          <p className="text-[9px] text-indigo-600 font-black uppercase mt-0.5">Dia {m.birthDate!.split('-')[2]}</p>
                         </div>
                       </div>
                     ))}
@@ -1418,9 +1409,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     )}
                   </div>
 
-                  {/* Transactions Table */}
+                  {/* Transactions Table & Mobile Cards */}
                   <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
-                    <div className="overflow-x-auto">
+                    {/* Desktop View Table */}
+                    <div className="hidden lg:block overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-slate-100/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
@@ -1470,6 +1462,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="lg:hidden divide-y divide-slate-100">
+                      {filteredTransactions.map(t => (
+                        <div key={t.id} className="p-4 flex flex-col gap-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">{t.date.split('-').reverse().join('/')}</p>
+                              <h4 className="font-bold text-slate-800 text-sm leading-tight">{t.description}</h4>
+                            </div>
+                            <div className={`font-black text-sm ${t.type === 'INCOME' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {t.type === 'INCOME' ? '' : '-'}{formatCurrency(t.amount)}
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-[9px] bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-black uppercase tracking-widest">{t.category}</span>
+                            <div className="flex gap-4">
+                              <button onClick={() => { setEditingTx(t); setIsTxModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase">Editar</button>
+                              <button onClick={() => handleDeleteTx(t.id)} className="text-red-500 font-black text-[10px] uppercase">Excluir</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {filteredTransactions.length === 0 && (
+                        <div className="p-10 text-center text-slate-400 italic">Nenhuma transação encontrada.</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1615,11 +1634,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
               {memberSubTab === 'list' && (
                 <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
-                  <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Gerenciar Membros</h3>
-                    <button onClick={() => { setEditingMember(null); setIsMemberModalOpen(true); }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-slate-800 transition">+ Novo Cadastro</button>
+                  <div className="p-6 md:p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <h3 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">Gerenciar Membros</h3>
+                    <button onClick={() => { setEditingMember(null); setIsMemberModalOpen(true); }} className="w-full md:w-auto bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-slate-800 transition">+ Novo Cadastro</button>
                   </div>
-                  <div className="overflow-x-auto">
+
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full text-left min-w-[1000px] border-collapse">
                       <thead>
                         <tr className="bg-slate-100/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
@@ -1662,6 +1683,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Card View */}
+                  <div className="lg:hidden divide-y divide-slate-100">
+                    {allUsers.map(u => (
+                      <div key={u.id} className="p-4 flex items-center gap-4">
+                        <img
+                          src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`}
+                          className="w-12 h-12 rounded-full border border-slate-100 shadow-sm"
+                        />
+                        <div className="flex-grow min-w-0">
+                          <p className="font-bold text-slate-900 text-sm truncate">{u.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-slate-500">{u.role}</span>
+                            <span className="text-[10px] text-slate-300">•</span>
+                            <span className="text-[10px] text-slate-500 truncate">{u.email}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button onClick={() => { setEditingMember(u); setIsMemberModalOpen(true); }} className="text-indigo-600 font-black text-[9px] uppercase">Editar</button>
+                          <button onClick={() => handleDeleteMember(u.id)} className="text-red-500 font-black text-[9px] uppercase">Remover</button>
+                        </div>
+                      </div>
+                    ))}
+                    {allUsers.length === 0 && (
+                      <div className="p-10 text-center text-slate-400 italic font-medium">Nenhum membro cadastrado.</div>
+                    )}
                   </div>
                 </div>
               )}
@@ -3062,7 +3110,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
               title="Novo Membro"
             >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
               </svg>
             </button>
@@ -3073,7 +3121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
               title="Nova Transação"
             >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
             </button>
@@ -3084,7 +3132,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
               title="Novo Evento"
             >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </button>
@@ -3092,18 +3140,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* Bottom Navigation - Mobile Only */}
-      <nav className="lg:hidden fixed bottom-6 left-6 right-6 bg-white/80 backdrop-blur-xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[32px] z-40 print:hidden safe-area-bottom px-2 h-20">
+      <nav className="lg:hidden fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[32px] z-40 print:hidden safe-area-bottom px-2 h-24">
         <div className="grid grid-cols-5 h-full items-center">
           <button
             onClick={() => setActiveTab('overview')}
             className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'overview' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            {activeTab === 'overview' && <div className="absolute -top-1 w-1 h-1 bg-indigo-600 rounded-full" />}
-            <svg className={`w-6 h-6 ${activeTab === 'overview' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {activeTab === 'overview' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+            <svg className={`w-8 h-8 ${activeTab === 'overview' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Início</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.05em]">Início</span>
           </button>
 
           {(user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
@@ -3111,11 +3158,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               onClick={() => setActiveTab('finances')}
               className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'finances' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
-              {activeTab === 'finances' && <div className="absolute -top-1 w-1 h-1 bg-indigo-600 rounded-full" />}
-              <svg className={`w-6 h-6 ${activeTab === 'finances' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {activeTab === 'finances' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+              <svg className={`w-8 h-8 ${activeTab === 'finances' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Finanças</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.05em]">Finanças</span>
             </button>
           )}
 
@@ -3123,11 +3170,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             onClick={() => setActiveTab('agenda')}
             className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'agenda' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            {activeTab === 'agenda' && <div className="absolute -top-1 w-1 h-1 bg-indigo-600 rounded-full" />}
-            <svg className={`w-6 h-6 ${activeTab === 'agenda' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {activeTab === 'agenda' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+            <svg className={`w-8 h-8 ${activeTab === 'agenda' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Agenda</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.05em]">Agenda</span>
           </button>
 
           {user.role === UserRole.ADMIN && (
@@ -3135,11 +3182,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               onClick={() => setActiveTab('members')}
               className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'members' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
-              {activeTab === 'members' && <div className="absolute -top-1 w-1 h-1 bg-indigo-600 rounded-full" />}
-              <svg className={`w-6 h-6 ${activeTab === 'members' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {activeTab === 'members' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+              <svg className={`w-8 h-8 ${activeTab === 'members' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
-              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Membros</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.05em]">Membros</span>
             </button>
           )}
 
@@ -3147,10 +3194,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             onClick={() => setIsMobileSidebarOpen(true)}
             className="flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-all duration-300"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Menu</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.05em]">Menu</span>
           </button>
         </div>
       </nav>
