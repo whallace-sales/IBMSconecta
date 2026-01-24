@@ -2477,7 +2477,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           endOfWeek.setDate(endOfWeek.getDate() + 6);
                           endOfWeek.setHours(23, 59, 59, 999);
 
-                          filteredEvents = events.filter(e => {
+                          filteredEvents = filteredEvents.filter(e => {
                             const d = new Date(e.startDate);
                             return d >= startOfWeek && d <= endOfWeek;
                           });
