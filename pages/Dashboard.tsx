@@ -144,6 +144,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [viewingMemberSubTab, setViewingMemberSubTab] = useState<'info' | 'finances' | 'edit'>('info');
   const [editingPost, setEditingPost] = useState<Post | null>(null);
 
+  // Estados de Escalas
+  const [isScaleModalOpen, setIsScaleModalOpen] = useState(false);
+  const [editingScale, setEditingScale] = useState<any>(null);
+  const [scaleFilter, setScaleFilter] = useState<'ALL' | 'MINE'>('ALL');
+  const [scaleParticipants, setScaleParticipants] = useState<string[]>([]);
+
   // Estados para Ajuste de Avatar
   const [tempAvatarFile, setTempAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -1309,6 +1315,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
   };
 
+  const handleSaveScale = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const meta = {
+        type: editingScale.type,
+        participants: scaleParticipants
+      };
+      const description = JSON.stringify(meta);
+      const title = editingScale.title.startsWith('[ESCALA] ') ? editingScale.title : `[ESCALA] ${editingScale.title}`;
+
+      const payload = {
+        title,
+        description, // JSON stored here
+        location: editingScale.location,
+        start_date: editingScale.date, // Start Date in DB
+        end_date: editingScale.date,   // End Date in DB (same day for now)
+        start_time: editingScale.startTime,
+        end_time: editingScale.endTime,
+        is_all_day: false
+      };
+
+      if (editingScale.id) {
+        await supabase.from('events').update(payload).eq('id', editingScale.id);
+      } else {
+        await supabase.from('events').insert([payload]);
+      }
+      await fetchData();
+      setIsScaleModalOpen(false);
+    } catch (error: any) {
+      alert('Erro ao salvar escala: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDeleteCat = async (id: string) => {
     if (confirm('Deseja realmente excluir esta categoria? Transações vinculadas poderão ficar sem categoria.')) {
       try {
@@ -1372,27 +1414,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     if (roles && !roles.includes(user.role)) return null;
 
     const isActive = activeTab === id;
-    const content = (
+
+    return (
       <button
         onClick={isLogout ? onLogout : () => setActiveTab(id)}
-        className={`w-full flex items-center transition-all duration-300 relative group px-6 py-4.5 ${isSidebarCollapsed ? 'justify-center' : 'gap-5'} ${isActive
-          ? 'text-white'
-          : isLogout ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-          }`}
+        className={`relative flex items-center transition-all duration-300 group py-3.5 mx-3 rounded-2xl mb-1
+          ${isSidebarCollapsed ? 'justify-center px-0 mx-2' : 'px-5 gap-4'}
+          ${isActive
+            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-900/30 ring-1 ring-white/10'
+            : isLogout
+              ? 'text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 mt-auto'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+          }
+        `}
       >
-        {isActive && !isSidebarCollapsed && (
-          <div className="absolute left-0 top-2 bottom-2 w-1.5 bg-indigo-500 rounded-r-full shadow-[0_0_20px_rgba(99,102,241,0.6)]"></div>
-        )}
-        <div className={`transition-all duration-300 flex-shrink-0 ${isActive ? 'text-indigo-400 scale-110' : 'text-slate-500 group-hover:text-slate-300'} [&_svg]:w-6 [&_svg]:h-6`}>
+        <div className={`transition-all duration-300 flex-shrink-0 ${isActive ? 'scale-110 text-indigo-100' : 'group-hover:scale-110'} [&_svg]:w-6 [&_svg]:h-6`}>
           {icon}
         </div>
-        <span className={`text-base tracking-tight transition-all duration-500 truncate ${isActive ? 'font-black' : 'font-bold'} ${isSidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto ml-5'}`}>
+        <span className={`text-[14px] font-bold tracking-wide whitespace-nowrap overflow-hidden transition-all duration-500 ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
           {label}
         </span>
+        {isActive && !isSidebarCollapsed && (
+          <div className="absolute right-4 w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+        )}
       </button>
     );
-
-    return content;
   };
 
   return (
@@ -1461,13 +1507,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         {/* Background Gradients */}
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent pointer-events-none"></div>
 
-        <div className={`p-8 border-b border-slate-800/50 flex items-center relative z-10 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : 'gap-4'}`}>
-          <div className="bg-white/10 p-2.5 rounded-2xl shadow-xl backdrop-blur-md border border-white/5 shrink-0 group-hover/sidebar:scale-105 transition-transform duration-300">
-            <img src={churchInfo.logoUrl || '/logo.png'} className="w-10 h-10 object-contain" alt="Logo" />
+        <div className={`p-6 border-b border-slate-800/50 flex items-center justify-center relative z-10 transition-all duration-500`}>
+          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-[1px] rounded-2xl shadow-xl shrink-0 group-hover/sidebar:scale-105 transition-transform duration-300">
+            <div className="bg-[#0f172a] p-2.5 rounded-[15px]">
+              <img src={churchInfo.logoUrl || '/logo.png'} className="w-8 h-8 object-contain" alt="Logo" />
+            </div>
           </div>
-          {!isSidebarCollapsed && (
-            <span className="font-black text-xl text-white tracking-tighter truncate animate-fade-in">{churchInfo.name}</span>
-          )}
 
           {/* Collapse Toggle Button */}
           <button
@@ -2172,6 +2217,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 >
                   Demografia
                 </button>
+
               </div>
 
               {memberSubTab === 'list' && (
@@ -2380,39 +2426,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                          <th className="px-10 py-5">Tipo</th>
-                          <th className="px-10 py-5 text-center">Pessoas</th>
-                          <th className="px-10 py-5 text-center">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {demographicsData.map((item, index) => (
-                          <tr key={index} className="hover:bg-slate-50 transition group">
-                            <td className="px-10 py-6">
-                              <div className="flex items-center gap-4">
-                                <span className="font-bold text-slate-900 text-lg tracking-tight">{item.name}</span>
-                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">{item.range}</span>
-                              </div>
-                            </td>
-                            <td className="px-10 py-6 text-center">
-                              <span className="text-xl font-black text-indigo-600">{item.value}</span>
-                            </td>
-                            <td className="px-10 py-6 text-center">
-                              <button onClick={() => setMemberSubTab('list')} className="bg-indigo-50 text-indigo-700 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition">Ver Pessoas</button>
-                            </td>
-                          </tr>
-                        ))}
-                        <tr className="bg-slate-900/5">
-                        </tr>
-                      </tbody>
-                    </table>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {demographicsData.map((item, index) => (
+                      <div key={index} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-lg transition group relative overflow-hidden cursor-pointer" onClick={() => setMemberSubTab('list')}>
+                        <div className="absolute top-0 left-0 w-2 h-full transition-all group-hover:w-3" style={{ backgroundColor: item.color }}></div>
+                        <div className="pl-4">
+                          <div className="flex justify-between items-start mb-6">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full group-hover:bg-slate-100 transition">{item.range}</span>
+                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+                            </div>
+                          </div>
+                          <h4 className="text-base font-bold text-slate-600 mb-1">{item.name}</h4>
+                          <p className="text-4xl font-black text-slate-900 group-hover:scale-105 origin-left transition duration-300">{item.value}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+
+
             </div>
           )}
 
@@ -4641,6 +4675,98 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        isScaleModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+              <div className="bg-slate-50 p-6 flex items-center justify-between border-b border-slate-100">
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Editor de escala</h3>
+                <button onClick={() => setIsScaleModalOpen(false)} className="hover:bg-slate-200 p-2 rounded-full transition">
+                  <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveScale} className="p-8 space-y-6 overflow-y-auto">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Título</label>
+                  <input required value={editingScale?.title || ''} onChange={e => setEditingScale({ ...editingScale, title: e.target.value })} placeholder="Ex: Escala de orações" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-700 focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Local</label>
+                  <input required value={editingScale?.location || ''} onChange={e => setEditingScale({ ...editingScale, location: e.target.value })} placeholder="Ex: Templo central" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-700 focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Descrição</label>
+                  <textarea rows={3} value={editingScale?.description || ''} onChange={e => setEditingScale({ ...editingScale, description: e.target.value })} placeholder="Ex: escala para o dia ..." className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-700 focus:border-indigo-500 resize-none" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Tipo da escala</label>
+                    <select value={editingScale?.type || 'Dia'} onChange={e => setEditingScale({ ...editingScale, type: e.target.value })} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-700">
+                      <option value="Dia">Dia</option>
+                      <option value="Noite">Noite</option>
+                      <option value="Evento">Evento</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data</label>
+                    <input type="date" required value={editingScale?.date || ''} onChange={e => setEditingScale({ ...editingScale, date: e.target.value })} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-700" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Início</label>
+                    <input type="time" required value={editingScale?.startTime || ''} onChange={e => setEditingScale({ ...editingScale, startTime: e.target.value })} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-700" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Fim</label>
+                    <input type="time" required value={editingScale?.endTime || ''} onChange={e => setEditingScale({ ...editingScale, endTime: e.target.value })} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-700" />
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <label className="block text-[10px] font-bold text-slate-800 uppercase">Participantes</label>
+                    <select onChange={e => {
+                      if (e.target.value && !scaleParticipants.includes(e.target.value)) {
+                        setScaleParticipants([...scaleParticipants, e.target.value]);
+                      }
+                    }} className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none text-xs font-bold w-48">
+                      <option value="">+ Adicionar</option>
+                      {allUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    {scaleParticipants.length === 0 && <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs font-bold">*Sem participantes</div>}
+                    {scaleParticipants.map(uid => {
+                      const u = allUsers.find(user => user.id === uid);
+                      if (!u) return null;
+                      return (
+                        <div key={uid} className="flex items-center justify-between bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                          <div className="flex items-center gap-3">
+                            <img src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name}`} className="w-8 h-8 rounded-full" />
+                            <span className="text-sm font-bold text-indigo-900">{u.name}</span>
+                          </div>
+                          <button type="button" onClick={() => setScaleParticipants(scaleParticipants.filter(p => p !== uid))} className="text-indigo-400 hover:text-rose-500 font-bold p-1">Remover</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4 border-t border-slate-100">
+                  <button type="button" onClick={() => setIsScaleModalOpen(false)} className="flex-1 py-4 border border-slate-200 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 transition">Cancelar</button>
+                  <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition">Salvar</button>
+                </div>
+              </form>
             </div>
           </div>
         )

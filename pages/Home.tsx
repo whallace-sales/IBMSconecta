@@ -20,7 +20,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
       // Filter only public and future events
       const today = new Date().toISOString().split('T')[0];
       const publicEvents = events
-        .filter(e => !e.isPrivate && e.startDate >= today)
+        .filter(e => !e.isPrivate && e.startDate >= today && !e.title.startsWith('[ESCALA]'))
         .sort((a, b) => a.startDate.localeCompare(b.startDate))
         .slice(0, 4);
       setUpcomingEvents(publicEvents);
@@ -39,11 +39,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
           />
         </div>
         <div className="relative z-10 text-center px-4 max-w-3xl">
-          <div className="flex justify-center mb-8">
-            <div className="bg-white p-4 rounded-3xl shadow-2xl shadow-indigo-500/50 transform hover:scale-110 transition duration-500">
-              <img src={churchInfo.logoUrl || '/logo.png'} className="h-24 w-auto object-contain" alt="Logo" />
-            </div>
-          </div>
+
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">Uma Família para Pertencer</h1>
           <p className="text-xl md:text-2xl mb-8 text-gray-200">Vivendo o evangelho de Cristo, servindo à comunidade e transformando vidas através do amor e da fé.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -72,7 +68,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {latestPosts.map(post => (
-                <div key={post.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition duration-300 flex flex-col">
+                <div key={post.id} className="bg-white rounded-[2rem] overflow-hidden shadow-lg shadow-slate-200/50 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full border border-slate-100 group">
                   <img src={post.imageUrl} className="w-full h-48 object-cover" alt={post.title} />
                   <div className="p-6 flex-grow">
                     <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">{post.date?.split('-').reverse().join('/')}</span>
