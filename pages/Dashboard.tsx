@@ -4157,13 +4157,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {viewingMember.role}</span>
                   </div>
                 </div>
-                <div className={`flex gap-2 print:hidden ${['finances', 'edit'].includes(viewingMemberSubTab) ? 'invisible' : ''}`}>
-                  <button onClick={handleArchiveMember} className="bg-rose-500 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-100 transition hover:bg-rose-600">Arquivar</button>
-                  <button onClick={handlePrintMember} className="bg-[#004a7c] text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-2 hover:bg-[#003a63] transition">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                    Imprimir
-                  </button>
-                  <button onClick={() => setViewingMember(null)} className="p-3 text-slate-400 hover:text-slate-600 transition ml-4"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <div className="flex items-center gap-4">
+                  <div className={`flex gap-2 print:hidden ${['finances', 'edit'].includes(viewingMemberSubTab) ? 'hidden' : ''}`}>
+                    {/* <button onClick={handleArchiveMember} className="bg-rose-500 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-100 transition hover:bg-rose-600">Arquivar</button> */}
+                    <button onClick={handlePrintMember} className="bg-[#004a7c] text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-2 hover:bg-[#003a63] transition">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                      Imprimir
+                    </button>
+                  </div>
+                  <button onClick={() => setViewingMember(null)} className="p-3 text-slate-400 hover:text-slate-600 transition print:hidden"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
               </div>
 
