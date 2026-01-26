@@ -614,6 +614,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
           if (badColumn === 'competence') newData['ref_date'] = badValue;
 
+          // Fix for notes not saving: try synonyms
+          if (badColumn === 'notes') {
+            newData['observation'] = badValue;
+          }
+          if (badColumn === 'observation') newData['obs'] = badValue;
+          if (badColumn === 'obs') newData['memo'] = badValue;
+          if (badColumn === 'memo') newData['comments'] = badValue;
+
+          // FINAL FALLBACK: Append to description if no column exists
+          if (badColumn === 'comments' && newData['description'] && badValue) {
+            newData['description'] = `${newData['description']} | Obs: ${badValue}`;
+          }
+
           // Tenta de novo com a estrutura ajustada
           return saveWithRetry(newData, attempt + 1);
         }
@@ -1474,7 +1487,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
           <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
           <SidebarItem id="agenda" label="Agenda" icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
-          <SidebarItem id="departamentos" label="Departamentos" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
+
           <SidebarItem id="settings" label="Configurações" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
 
           <div className="pt-4 mt-4 border-t border-slate-800/50">
@@ -1931,7 +1944,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             <th className="px-6 py-4">Data</th>
                             <th className="px-6 py-4">Descrição</th>
                             <th className="px-6 py-4 text-center">Total</th>
-                            <th className="px-6 py-4 text-center">Contato</th>
+                            <th className="px-6 py-4 text-center">QUEM</th>
                             <th className="px-6 py-4">Categoria</th>
                             <th className="px-6 py-4 text-center">Ações</th>
                           </tr>
@@ -1944,7 +1957,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                               </td>
                               <td className="px-6 py-4 text-slate-500 text-xs font-bold leading-tight">{t.date.split('-').reverse().join('/')}</td>
                               <td className="px-6 py-4">
-                                <div className="font-bold text-slate-700 text-xs tracking-tight">{t.description}</div>
+                                <div className="font-bold text-slate-700 text-xs tracking-tight">{t.description.split(' | Obs: ')[0]}</div>
                                 <div className="text-[10px] text-slate-400 font-medium">{t.description.split('-')[1] || ''}</div>
                               </td>
                               <td className="px-6 py-4 text-center">
@@ -1959,12 +1972,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                               <td className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-tight">{t.category}</td>
                               <td className="px-6 py-4">
                                 <div className="flex justify-center gap-3 transition">
-                                  <button onClick={() => { setEditingTx(t); setIsTxModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Editar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
                                   <button onClick={() => {
-                                    setOriginalTxDescription(t.description);
+                                    const parts = t.description.split(' | Obs: ');
+                                    const realDesc = parts[0];
+                                    const realNotes = parts.length > 1 ? parts.slice(1).join(' | Obs: ') : (t.notes || '');
+                                    setEditingTx({ ...t, description: realDesc, notes: realNotes });
+                                    setIsTxModalOpen(true);
+                                  }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Editar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                  <button onClick={() => {
+                                    const parts = t.description.split(' | Obs: ');
+                                    const cleanDesc = parts[0];
+                                    const realNotes = parts.length > 1 ? parts.slice(1).join(' | Obs: ') : (t.notes || '');
+
+                                    setOriginalTxDescription(cleanDesc);
                                     setIsDuplicatingTx(true);
-                                    const newDescription = t.description.includes(' - Cópia') ? t.description : t.description + ' - Cópia';
-                                    setEditingTx({ ...t, id: undefined, description: newDescription });
+                                    const newDescription = cleanDesc.includes(' - Cópia') ? cleanDesc : cleanDesc + ' - Cópia';
+                                    setEditingTx({ ...t, id: undefined, description: newDescription, notes: realNotes });
                                     setIsTxModalOpen(true);
                                   }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Duplicar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg></button>
                                   <button onClick={() => handleDeleteTx(t.id)} className="p-1.5 text-slate-400 hover:text-rose-600 transition" title="Excluir"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
@@ -1983,7 +2006,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           <div className="flex justify-between items-start">
                             <div>
                               <p className="text-[10px] text-slate-400 font-bold uppercase">{t.date.split('-').reverse().join('/')}</p>
-                              <h4 className="font-bold text-slate-800 text-sm leading-tight">{t.description}</h4>
+                              <h4 className="font-bold text-slate-800 text-sm leading-tight">{t.description.split(' | Obs: ')[0]}</h4>
                             </div>
                             <div className={`font-black text-sm ${t.type === 'INCOME' ? 'text-emerald-500' : 'text-rose-500'}`}>
                               {t.type === 'INCOME' ? '' : '-'}{formatCurrency(t.amount)}
@@ -1992,7 +2015,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           <div className="flex justify-between items-center mt-1">
                             <span className="text-[9px] bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-black uppercase tracking-widest">{t.category}</span>
                             <div className="flex gap-4">
-                              <button onClick={() => { setEditingTx(t); setIsTxModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase">Editar</button>
+                              <button onClick={() => {
+                                const parts = t.description.split(' | Obs: ');
+                                const realDesc = parts[0];
+                                const realNotes = parts.length > 1 ? parts.slice(1).join(' | Obs: ') : (t.notes || '');
+                                setEditingTx({ ...t, description: realDesc, notes: realNotes });
+                                setIsTxModalOpen(true);
+                              }} className="text-indigo-600 font-black text-[10px] uppercase">Editar</button>
                               <button onClick={() => {
                                 setOriginalTxDescription(t.description);
                                 setIsDuplicatingTx(true);
