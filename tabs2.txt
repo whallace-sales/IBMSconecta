@@ -1,0 +1,24 @@
+1241: const isActive = activeTab === id;
+1473: {activeTab === 'overview' && (
+1649: {activeTab === 'finances' && (
+1976: {activeTab === 'members' && (
+2243: {activeTab === 'reports' && (
+2263: {activeTab === 'posts' && (
+2291: {activeTab === 'agenda' && (
+2682: {activeTab === 'departamentos' && (
+3121: {activeTab === 'settings' && user.role === UserRole.ADMIN && (
+4359: {activeTab === 'members' && user.role === UserRole.ADMIN && (
+4370: {(activeTab === 'overview' || activeTab === 'finances') && (user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
+4381: {activeTab === 'agenda' && (
+4400: className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'overview' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+4402: {activeTab === 'overview' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+4403: <svg className={`w-8 h-8 ${activeTab === 'overview' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+4412: className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'finances' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+4414: {activeTab === 'finances' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+4415: <svg className={`w-8 h-8 ${activeTab === 'finances' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+4424: className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'agenda' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+4426: {activeTab === 'agenda' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+4427: <svg className={`w-8 h-8 ${activeTab === 'agenda' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+4436: className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'members' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+4438: {activeTab === 'members' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+4439: <svg className={`w-8 h-8 ${activeTab === 'members' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">

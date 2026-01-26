@@ -9,6 +9,7 @@ import { getTransactions, getCategories, getPosts, getProfile, getChurchInfo, up
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
+
 interface DashboardProps {
   user: User;
   onLogout: () => void;
@@ -386,7 +387,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         return { ...c, name: uppercaseName, type };
       });
 
-      setTransactions(txs);
+      const processedTxs = txs.map(t => ({
+        ...t,
+        category: t.category ? t.category.toUpperCase() : 'GERAL'
+      }));
+
+      setTransactions(processedTxs);
       setCategories(processedCats);
       setPosts(psts);
       setEvents(evs);
@@ -498,32 +504,53 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const handleSaveTx = async (e: React.FormEvent<HTMLFormElement>, closeAfter: boolean = true) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    setIsSubmitting(true); // Feedback imediato
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
 
     const catName = formData.get('category') as string;
     const catId = categories.find(c => c.name === catName)?.id;
 
     if (!catId) {
-      alert('Categoria inválida');
+      alert('Categoria inválida. Selecione uma da lista.');
+      setIsSubmitting(false);
       return;
     }
 
-    // Upload de Arquivos se houver
+    // Upload de Arquivos
     let fileUrls = [...attachedUrls];
     if (txFiles.length > 0) {
-      try {
-        for (const file of txFiles) {
+      for (const file of txFiles) {
+        try {
           const fileExt = file.name.split('.').pop();
           const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-          const filePath = `transactions/${fileName}`;
-          const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
-          if (uploadError) throw uploadError;
-          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-          fileUrls.push(publicUrl);
+          let publicUrl = '';
+
+          // Upload para bucket 'avatars' na pasta 'documents' (Bucket padrão geralmente funciona melhor)
+          const path = `documents/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file);
+
+          if (!uploadError) {
+            const res = supabase.storage.from('avatars').getPublicUrl(path);
+            publicUrl = res.data.publicUrl;
+          } else {
+            console.error('Erro upload:', uploadError);
+            // Tenta root do bucket avatars como fallback
+            const { error: err2 } = await supabase.storage.from('avatars').upload(fileName, file);
+            if (!err2) {
+              const res = supabase.storage.from('avatars').getPublicUrl(fileName);
+              publicUrl = res.data.publicUrl;
+            } else {
+              alert(`Erro ao salvar anexo: ${uploadError.message}`);
+            }
+          }
+
+          if (publicUrl) fileUrls.push(publicUrl);
+
+        } catch (uploadEx) {
+          console.error('Exceção no upload:', uploadEx);
         }
-      } catch (err: any) {
-        console.error('Erro no upload de arquivos:', err);
-        alert('Erro ao carregar anexos, mas a transação será salva.');
       }
     }
 
@@ -535,39 +562,94 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       date: formData.get('date') as string,
       member_name: (formData.get('member') as string) || null,
       is_paid: formData.get('is_paid') === 'true',
-      cost_center: formData.get('cost_center') as string,
-      payment_type: formData.get('payment_type') as string,
-      doc_number: formData.get('doc_number') as string,
-      competence: formData.get('competence') as string || null,
       notes: formData.get('notes') as string,
-      attachment_urls: fileUrls, // Now saving URLs
+      // Tenta salvar anexos e outros campos. 
+      // Se não existirem no banco, o saveWithRetry vai removê-los automaticamente.
+      attachment_urls: fileUrls,
+      payment_type: formData.get('payment_type') as string || 'Único', // Default se não tiver no form
+      competence: formData.get('competence') as string || null,
+    };
+
+    // Função RECURSIVA para salvar e IGNORAR qualquer coluna que não exista no banco
+    const saveWithRetry = async (data: any, attempt = 1): Promise<any> => {
+      try {
+        if (editingTx?.id) {
+          const { error } = await supabase.from('transactions').update(data).eq('id', editingTx.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('transactions').insert([data]);
+          if (error) throw error;
+        }
+      } catch (error: any) {
+        // DETECTA QUALQUER COLUNA INEXISTENTE (Vários formatos de erro)
+        const msg = error.message || '';
+
+        // Regex 1: erro padrão do Postgres (column "xyz" does not exist)
+        let match = msg.match(/column "(.+?)"/);
+
+        // Regex 2: erro de Cache do Supabase (Could not find the 'xyz' column)
+        if (!match) {
+          match = msg.match(/Could not find the '(.+?)' column/);
+        }
+
+        const badColumn = match ? match[1] : null;
+
+        if (badColumn && attempt < 15) {
+          console.warn(`Banco desatualizado: Coluna '${badColumn}' não existe. Removendo e tentando alternativa...`);
+
+          // Remove a coluna problemática
+          const newData = { ...data };
+          const badValue = newData[badColumn];
+          delete newData[badColumn];
+
+          // Tenta SINÔNIMOS (estratégia de adaptação de schema)
+          if (badColumn === 'attachment_urls') newData['attachments'] = badValue;
+          else if (badColumn === 'attachments') newData['files'] = badValue;
+          else if (badColumn === 'files') newData['file_urls'] = badValue;
+
+          if (badColumn === 'is_paid') newData['paid'] = badValue;
+          else if (badColumn === 'paid') newData['status'] = badValue ? 'PAID' : 'PENDING';
+
+          if (badColumn === 'payment_type') newData['payment_method'] = badValue;
+
+          if (badColumn === 'competence') newData['ref_date'] = badValue;
+
+          // Tenta de novo com a estrutura ajustada
+          return saveWithRetry(newData, attempt + 1);
+        }
+
+        throw error; // Se não for erro de coluna tratável, estoura o erro real
+      }
     };
 
     try {
-      setIsSubmitting(true);
-      if (editingTx?.id) {
-        await supabase.from('transactions').update(txData).eq('id', editingTx.id);
-      } else {
-        await supabase.from('transactions').insert([txData]);
-      }
+      await saveWithRetry(txData);
 
       if (closeAfter) {
         setIsTxModalOpen(false);
         setIsDuplicatingTx(false);
         setOriginalTxDescription('');
       } else {
-        e.currentTarget.reset();
+        form.reset();
         setTxFiles([]);
         setAttachedUrls([]);
         setIsDuplicatingTx(false);
         setOriginalTxDescription('');
-        const currentType = editingTx?.type || 'INCOME';
-        setEditingTx({ type: currentType, amount: 0, date: new Date().toISOString().split('T')[0], category: '', description: '', costCenter: '' } as Transaction);
+        // Mantém o tipo atual
+        const currentType = txData.type;
+        setEditingTx({
+          type: currentType,
+          amount: 0,
+          date: new Date().toISOString().split('T')[0],
+          category: '',
+          description: '',
+          costCenter: ''
+        } as Transaction);
       }
       fetchData();
     } catch (error: any) {
       console.error(error);
-      alert('Erro ao salvar transação: ' + error.message);
+      alert('Erro ao salvar transação no banco de dados: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -575,28 +657,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const handleSaveCat = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     const catData = {
       name: (formData.get('name') as string).toUpperCase(),
       color: formData.get('color') as string || 'indigo',
       type: formData.get('type') as 'INCOME' | 'EXPENSE',
       description: formData.get('description') as string || null,
     };
+
     try {
       setIsSubmitting(true);
-      if (editingCat) {
-        await supabase.from('categories').update(catData).eq('id', editingCat.id);
-      } else {
-        await supabase.from('categories').insert([catData]);
+
+      let success = false;
+      let isPartial = false;
+
+      // Tentativa 1: Salvar completo (assumindo que as colunas type e description existem)
+      try {
+        const { error } = editingCat
+          ? await supabase.from('categories').update(catData).eq('id', editingCat.id)
+          : await supabase.from('categories').insert([catData]);
+
+        if (error) throw error;
+        success = true;
+      } catch (err: any) {
+        console.warn('Erro ao salvar campos extras (pode ser esquema desatualizado):', err);
+
+        // Se o erro for "Failed to fetch", geralmente é rede e não adianta tentar de novo
+        if (err.message && err.message.includes('Failed to fetch')) {
+          throw err;
+        }
+
+        // Tentativa 2: Fallback (apenas campos básicos garantidos)
+        const basicData = { name: catData.name, color: catData.color };
+        const { error: error2 } = editingCat
+          ? await supabase.from('categories').update(basicData).eq('id', editingCat.id)
+          : await supabase.from('categories').insert([basicData]);
+
+        if (error2) throw error2; // Se falhar aqui, desiste
+        success = true;
+        isPartial = true;
       }
-      setIsCatModalOpen(false);
-      setEditingCat(null);
-      e.currentTarget.reset(); // Reset form (works for inline too)
-      fetchData();
-      if (!isCatModalOpen) alert('Categoria criada com sucesso!');
+
+      if (success) {
+        setIsCatModalOpen(false);
+        setEditingCat(null);
+        try {
+          form.reset();
+        } catch (resetErr) {
+          console.warn('Form reset failed:', resetErr);
+        }
+        await fetchData();
+
+        if (isPartial) {
+          alert('Categoria salva, mas campos "Tipo" e "Descrição" foram ignorados pois o banco de dados precisa de atualização (colunas inexistentes).');
+        } else {
+          alert(editingCat ? 'Categoria atualizada!' : 'Categoria criada com sucesso!');
+        }
+      }
     } catch (error: any) {
-      console.error(error);
-      alert('Erro ao salvar categoria: ' + error.message);
+      console.error('Erro ao salvar categoria:', error);
+      alert('Erro fatal ao salvar categoria: ' + (error.message || 'Erro de conexão ou permissão'));
     } finally {
       setIsSubmitting(false);
     }
@@ -724,19 +845,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       cargos: formData.get('cargos') as string,
     };
 
+    // Função RECURSIVA para salvar Membro (ignorando colunas faltando)
+    const saveMemberWithRetry = async (data: any, attempt = 1): Promise<any> => {
+      try {
+        const { error } = await supabase.from('profiles').upsert({ id: userId, ...data });
+        if (error) throw error;
+      } catch (error: any) {
+        const msg = error.message || '';
+        let match = msg.match(/column "(.+?)"/);
+        if (!match) match = msg.match(/Could not find the '(.+?)' column/);
+
+        const badColumn = match ? match[1] : null;
+
+        if (badColumn && attempt < 15) {
+          console.warn(`Membro - Coluna '${badColumn}' inexistente. Removendo...`);
+          const newData = { ...data };
+          delete newData[badColumn];
+          return saveMemberWithRetry(newData, attempt + 1);
+        }
+        throw error;
+      }
+    };
+
     try {
       setIsSubmitting(true);
       if (userId) {
-        const { error } = await supabase
-          .from('profiles')
-          .upsert({
-            id: userId,
-            ...memberData
-          });
-
-        if (error) throw error;
+        await saveMemberWithRetry(memberData);
       } else {
         alert('Erro: ID do usuário não encontrado.');
+        setIsSubmitting(false);
         return;
       }
 
@@ -748,51 +885,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setIsAvatarRemoved(false);
 
       await fetchData();
+      alert(editingMember ? 'Membro atualizado!' : 'Membro criado!');
 
-      if (viewingMember && userId === viewingMember.id) {
-        setViewingMemberSubTab('info');
-        const { data: updated } = await supabase.from('profiles').select('*').eq('id', userId).single();
-        if (updated) {
-          setViewingMember({
-            id: updated.id,
-            name: updated.name,
-            email: updated.email,
-            role: updated.role,
-            birthDate: updated.birth_date,
-            address: updated.address,
-            phone: updated.phone,
-            phone2: updated.phone2,
-
-            addressNumber: updated.address_number,
-            country: updated.country,
-            categories: updated.categories,
-            cargos: updated.cargos,
-            avatarUrl: updated.avatar_url,
-            gender: updated.gender,
-            maritalStatus: updated.marital_status,
-            education: updated.education,
-            spouseName: updated.spouse_name,
-            conversionDate: updated.conversion_date,
-            baptismDate: updated.baptism_date,
-            isBaptized: updated.is_baptized,
-            notes: updated.notes,
-            neighborhood: updated.neighborhood,
-            city: updated.city,
-            state: updated.state,
-            cep: updated.cep,
-            createdAt: updated.created_at,
-          });
+      // Se estava vendo este membro, atualiza a view
+      if (viewingMember && viewingMember.id === userId) {
+        // Recarrega os dados do membro atualizado
+        const { data: updatedMember } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        if (updatedMember) {
+          setViewingMember({ ...updatedMember, email }); // Mantém email original pois profiles pode não ter
+          setViewingMemberSubTab('info');
         }
       }
 
-      alert('Dados do membro salvos com sucesso!');
     } catch (error: any) {
       console.error('Erro ao salvar membro:', error);
-      alert('Erro ao salvar membro: ' + (error.message || 'Erro desconhecido'));
+      alert('Erro ao salvar: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+
+
 
   const handleSavePost = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1584,7 +1698,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                                       <div
                                         className="w-4 h-4 rounded-full flex-shrink-0 mt-1"
                                         style={{ backgroundColor: eventCat.color }}
-                                      />
+                                      ></div>
                                     )}
                                   </div>
                                   <div className="flex items-center gap-4 mt-2 text-base md:text-[10px] text-slate-500">
@@ -1900,7 +2014,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                                 </td>
                                 <td className="px-4 py-4 text-right">
                                   <div className="flex justify-end gap-2">
-                                    <button onClick={() => setEditingCat(cat)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Editar</button>
+                                    <button onClick={() => { setEditingCat(cat); setIsCatModalOpen(true); }} className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Editar</button>
                                     <button onClick={() => handleDeleteCat(cat.id)} className="border border-rose-200 text-rose-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-rose-50 transition">Remover</button>
                                   </div>
                                 </td>
@@ -1950,7 +2064,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                                 </td>
                                 <td className="px-4 py-4 text-right">
                                   <div className="flex justify-end gap-2">
-                                    <button onClick={() => setEditingCat(cat)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Editar</button>
+                                    <button onClick={() => { setEditingCat(cat); setIsCatModalOpen(true); }} className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Editar</button>
                                     <button onClick={() => handleDeleteCat(cat.id)} className="border border-rose-200 text-rose-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-rose-50 transition">Remover</button>
                                   </div>
                                 </td>
@@ -2224,9 +2338,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           </tr>
                         ))}
                         <tr className="bg-slate-900/5">
-                          <td className="px-10 py-6 font-black text-slate-900 text-lg uppercase tracking-tight">Total Geral</td>
-                          <td className="px-10 py-6 text-center font-black text-2xl text-slate-900">{allUsers.length}</td>
-                          <td></td>
                         </tr>
                       </tbody>
                     </table>
@@ -2392,158 +2503,170 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </button>
                   </div>
 
-                  {/* Calendar Content */}
-                  {calendarViewMode === 'month' && (
-                    <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-3xl overflow-hidden">
-                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                        <div key={day} className="bg-slate-50 py-4 text-center">
-                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{day}</span>
-                        </div>
-                      ))}
-                      {(() => {
-                        const daysInMonth = new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth() + 1, 0).getDate();
-                        const firstDayOfMonth = new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth(), 1).getDay();
-                        const days = [];
+                  <div className="flex-grow">
+                    {/* Pre-filter events globally for the calendar view */}
+                    {(() => {
+                      const filteredEvents = events.filter(e => {
+                        if (calendarCatFilter === 'ALL') return true;
+                        // Use string conversion for robust comparison of IDs
+                        return String(e.categoryId) === String(calendarCatFilter);
+                      });
 
-                        // Empty cells for first week
-                        for (let i = 0; i < firstDayOfMonth; i++) {
-                          days.push(<div key={`empty-${i}`} className="bg-white/50 h-32 lg:h-40 p-4 border-slate-100"></div>);
-                        }
+                      return (
+                        <>
+                          {calendarViewMode === 'month' && (
+                            <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-3xl overflow-hidden">
+                              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                                <div key={day} className="bg-slate-50 py-4 text-center">
+                                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{day}</span>
+                                </div>
+                              ))}
+                              {(() => {
+                                const y = selectedCalendarDate.getFullYear();
+                                const m = selectedCalendarDate.getMonth();
+                                const daysInMonth = new Date(y, m + 1, 0).getDate();
+                                const firstDayOfMonth = new Date(y, m, 1).getDay();
+                                const days = [];
 
-                        // Month days
-                        for (let d = 1; d <= daysInMonth; d++) {
-                          const dateStr = `${selectedCalendarDate.getFullYear()}-${String(selectedCalendarDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                          let dayEvents = events.filter(e => e.startDate === dateStr);
-                          if (calendarCatFilter !== 'ALL') {
-                            dayEvents = dayEvents.filter(e => e.categoryId === calendarCatFilter);
-                          }
-                          const isToday = new Date().toISOString().split('T')[0] === dateStr;
-
-                          days.push(
-                            <div
-                              key={d}
-                              onClick={(e) => {
-                                if (e.target === e.currentTarget) {
-                                  setEditingEvent({ startDate: dateStr, endDate: dateStr, isAllDay: false, isPrivate: false, title: '', repeat: 'NONE' } as any);
-                                  setIsEventModalOpen(true);
+                                // Empty cells for first week
+                                for (let i = 0; i < firstDayOfMonth; i++) {
+                                  days.push(<div key={`empty-${i}`} className="bg-white/50 h-32 lg:h-40 p-4 border-slate-100"></div>);
                                 }
-                              }}
-                              className={`bg-white h-32 lg:h-40 p-4 hover:bg-slate-50 transition relative group border-t border-l border-slate-100 cursor-pointer ${isToday ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
-                            >
-                              <span className={`text-sm font-black ${isToday ? 'text-indigo-600' : 'text-slate-900'} mb-2 block`}>{d}</span>
-                              <div className="space-y-1.5 overflow-y-auto max-h-[calc(100%-2rem)] scrollbar-hide">
-                                {dayEvents.map(e => {
-                                  const cat = eventCategories.find(c => c.id === e.categoryId);
-                                  return (
+
+                                // Month days
+                                for (let d = 1; d <= daysInMonth; d++) {
+                                  const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                  const dayEvents = filteredEvents.filter(e => e.startDate === dateStr);
+                                  const isToday = new Date().toISOString().split('T')[0] === dateStr;
+
+                                  days.push(
                                     <div
-                                      key={e.id}
-                                      onClick={() => { setEditingEvent(e); setIsEventModalOpen(true); }}
-                                      className="p-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight text-white cursor-pointer hover:brightness-90 transition truncate shadow-sm"
-                                      style={{ backgroundColor: cat?.color || '#6366f1' }}
-                                      title={e.title}
+                                      key={d}
+                                      onClick={(e) => {
+                                        if (e.target === e.currentTarget) {
+                                          setEditingEvent({ startDate: dateStr, endDate: dateStr, isAllDay: false, isPrivate: false, title: '', repeat: 'NONE' } as any);
+                                          setIsEventModalOpen(true);
+                                        }
+                                      }}
+                                      className={`bg-white h-32 lg:h-40 p-4 hover:bg-slate-50 transition relative group border-t border-l border-slate-100 cursor-pointer ${isToday ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
                                     >
-                                      {e.startTime ? `${e.startTime.substring(0, 5)} ` : ''}{e.title}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        }
-                        return days;
-                      })()}
-                    </div>
-                  )}
-
-                  {(calendarViewMode === 'monthList' || calendarViewMode === 'weekList') && (
-                    <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
-                      {(() => {
-                        let filteredEvents = events;
-                        if (calendarCatFilter !== 'ALL') {
-                          filteredEvents = filteredEvents.filter(e => e.categoryId === calendarCatFilter);
-                        }
-
-                        if (calendarViewMode === 'monthList') {
-                          filteredEvents = filteredEvents.filter(e => {
-                            const d = new Date(e.startDate);
-                            return d.getMonth() === selectedCalendarDate.getMonth() && d.getFullYear() === selectedCalendarDate.getFullYear();
-                          });
-                        } else {
-                          const startOfWeek = new Date(selectedCalendarDate);
-                          startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-                          startOfWeek.setHours(0, 0, 0, 0);
-
-                          const endOfWeek = new Date(startOfWeek);
-                          endOfWeek.setDate(endOfWeek.getDate() + 6);
-                          endOfWeek.setHours(23, 59, 59, 999);
-
-                          filteredEvents = filteredEvents.filter(e => {
-                            const d = new Date(e.startDate);
-                            return d >= startOfWeek && d <= endOfWeek;
-                          });
-                        }
-
-                        // Group by day
-                        const grouped: { [key: string]: typeof events } = {};
-                        filteredEvents.forEach(e => {
-                          if (!grouped[e.startDate]) grouped[e.startDate] = [];
-                          grouped[e.startDate].push(e);
-                        });
-
-                        const sortedDays = Object.keys(grouped).sort();
-
-                        if (sortedDays.length === 0) {
-                          return (
-                            <div className="p-20 text-center bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200">
-                              <p className="text-slate-400 font-bold italic">Nenhum evento agendado neste período.</p>
-                            </div>
-                          );
-                        }
-
-                        return sortedDays.map(dateStr => {
-                          const dayEvents = grouped[dateStr].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-                          const d = new Date(dateStr);
-                          const dayName = d.toLocaleDateString('pt-BR', { weekday: 'long' });
-                          const dateReadable = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-
-                          return (
-                            <div key={dateStr} className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
-                              <div className="bg-slate-50 px-6 py-3 border-b border-slate-100">
-                                <h5 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">
-                                  {dayName}, {dateReadable}
-                                </h5>
-                              </div>
-                              <div className="divide-y divide-slate-50 bg-white">
-                                {dayEvents.map(e => {
-                                  const cat = eventCategories.find(c => c.id === e.categoryId);
-                                  return (
-                                    <div
-                                      key={e.id}
-                                      onClick={() => { setEditingEvent(e); setIsEventModalOpen(true); }}
-                                      className="px-8 py-4 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer group"
-                                    >
-                                      <div className="flex items-center gap-6">
-                                        <div className="w-24 text-[11px] font-bold text-slate-400">
-                                          {e.startTime ? `${e.startTime.substring(0, 5)}${e.endTime ? ` - ${e.endTime.substring(0, 5)}` : ''}` : 'Dia todo'}
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat?.color || '#6366f1' }}></div>
-                                          <span className="text-sm font-bold text-slate-700 tracking-tight">{e.title}</span>
-                                        </div>
-                                      </div>
-                                      <div className="opacity-0 group-hover:opacity-100 transition">
-                                        <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+                                      <span className={`text-sm font-black ${isToday ? 'text-indigo-600' : 'text-slate-900'} mb-2 block`}>{d}</span>
+                                      <div className="space-y-1.5 overflow-y-auto max-h-[calc(100%-2rem)] scrollbar-hide">
+                                        {dayEvents.map(e => {
+                                          const cat = eventCategories.find(c => c.id === e.categoryId);
+                                          return (
+                                            <div
+                                              key={e.id}
+                                              onClick={() => { setEditingEvent(e); setIsEventModalOpen(true); }}
+                                              className="p-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight text-white cursor-pointer hover:brightness-90 transition truncate shadow-sm"
+                                              style={{ backgroundColor: cat?.color || '#6366f1' }}
+                                              title={e.title}
+                                            >
+                                              {e.startTime ? `${e.startTime.substring(0, 5)} ` : ''}{e.title}
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   );
-                                })}
-                              </div>
+                                }
+                                return days;
+                              })()}
                             </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                  )}
+                          )}
+
+                          {(calendarViewMode === 'monthList' || calendarViewMode === 'weekList') && (
+                            <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
+                              {(() => {
+                                let viewFilteredEvents = filteredEvents;
+
+                                if (calendarViewMode === 'monthList') {
+                                  viewFilteredEvents = viewFilteredEvents.filter(e => {
+                                    const [y, m, d] = e.startDate.split('-').map(Number);
+                                    return (m - 1) === selectedCalendarDate.getMonth() && y === selectedCalendarDate.getFullYear();
+                                  });
+                                } else {
+                                  const startOfWeek = new Date(selectedCalendarDate);
+                                  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+                                  startOfWeek.setHours(0, 0, 0, 0);
+
+                                  const endOfWeek = new Date(startOfWeek);
+                                  endOfWeek.setDate(endOfWeek.getDate() + 6);
+                                  endOfWeek.setHours(23, 59, 59, 999);
+
+                                  viewFilteredEvents = viewFilteredEvents.filter(e => {
+                                    const [y, m, d_val] = e.startDate.split('-').map(Number);
+                                    const eventDate = new Date(y, m - 1, d_val);
+                                    return eventDate >= startOfWeek && eventDate <= endOfWeek;
+                                  });
+                                }
+
+                                // Group by day
+                                const grouped: { [key: string]: typeof events } = {};
+                                viewFilteredEvents.forEach(e => {
+                                  if (!grouped[e.startDate]) grouped[e.startDate] = [];
+                                  grouped[e.startDate].push(e);
+                                });
+
+                                const sortedDays = Object.keys(grouped).sort();
+
+                                if (sortedDays.length === 0) {
+                                  return (
+                                    <div className="p-20 text-center bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200">
+                                      <p className="text-slate-400 font-bold italic">Nenhum evento agendado neste período.</p>
+                                    </div>
+                                  );
+                                }
+
+                                return sortedDays.map(dateStr => {
+                                  const dayEvents = grouped[dateStr].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+                                  const [y, m, d_val] = dateStr.split('-').map(Number);
+                                  const d = new Date(y, m - 1, d_val);
+                                  const dayName = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+                                  const dateReadable = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+                                  return (
+                                    <div key={dateStr} className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+                                      <div className="bg-slate-50 px-6 py-3 border-b border-slate-100">
+                                        <h5 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">
+                                          {dayName}, {dateReadable}
+                                        </h5>
+                                      </div>
+                                      <div className="divide-y divide-slate-50 bg-white">
+                                        {dayEvents.map(e => {
+                                          const cat = eventCategories.find(c => c.id === e.categoryId);
+                                          return (
+                                            <div
+                                              key={e.id}
+                                              onClick={() => { setEditingEvent(e); setIsEventModalOpen(true); }}
+                                              className="px-8 py-4 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer group"
+                                            >
+                                              <div className="flex items-center gap-6">
+                                                <div className="w-24 text-[11px] font-bold text-slate-400">
+                                                  {e.startTime ? `${e.startTime.substring(0, 5)}${e.endTime ? ` - ${e.endTime.substring(0, 5)}` : ''}` : 'Dia todo'}
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat?.color || '#6366f1' }}></div>
+                                                  <span className="text-sm font-bold text-slate-700 tracking-tight">{e.title}</span>
+                                                </div>
+                                              </div>
+                                              <div className="opacity-0 group-hover:opacity-100 transition">
+                                                <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 {/* Sidebar Categories */}
@@ -2581,6 +2704,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       </div>
 
                       <div className="pt-4 space-y-2 border-t border-slate-50">
+                        <button
+                          onClick={() => setCalendarCatFilter('ALL')}
+                          className={`w-full px-6 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-left transition-all border ${calendarCatFilter === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white text-slate-900 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}
+                        >
+                          Todas Categorias
+                        </button>
+
                         {eventCategories.map(cat => (
                           <div key={cat.id} className="relative group flex items-center gap-2">
                             {editingEvCatId === cat.id ? (
@@ -3131,8 +3261,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   </div>
                   <div className="pt-6"><button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-[24px] font-black uppercase text-xs tracking-widest shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition transform active:scale-[0.98]">Salvar Configurações</button></div>
                 </form>
-
-
               </div>
             </div>
           )}
@@ -3242,40 +3370,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       <p className="text-[9px] text-rose-500 font-bold uppercase mt-1">Cadastre categorias na aba Configurações primeiro.</p>
                     )}
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-900">Centro de Custo</label>
-                    <input name="cost_center" defaultValue={editingTx?.costCenter} placeholder="Ex: Sede, Missões..." className={`w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700 focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-900">Doc nº</label>
-                    <input name="doc_number" defaultValue={editingTx?.docNumber} placeholder="Opcional" className={`w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-700 focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`} />
-                  </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-8">
-                  <div className="flex-1 space-y-6">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-bold text-slate-900">Tipo de pagamento</label>
-                      <select name="payment_type" defaultValue={editingTx?.paymentType || 'Único'} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
-                        <option value="Único">Único</option>
-                        <option value="Parcelado">Parcelado</option>
-                        <option value="Recorrente">Recorrente</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-bold text-slate-900">Competência</label>
-                      <div className="flex items-center bg-slate-100/50 border border-slate-200 rounded-lg overflow-hidden">
-                        <input name="competence" type="month" defaultValue={editingTx?.competence ? editingTx.competence.substring(0, 7) : ''} className="w-full px-4 py-3 bg-transparent outline-none text-slate-600 font-medium" />
-                        <div className="p-3 text-slate-400 border-l border-slate-200">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="flex-1 space-y-2">
                     <label className="block text-sm font-bold text-slate-900">Anotações</label>
                     <textarea name="notes" defaultValue={editingTx?.notes} rows={8} className={`w-full px-6 py-4 bg-white border border-slate-200 rounded-xl outline-none font-medium text-slate-700 resize-none shadow-sm focus:ring-2 ${editingTx?.type === 'EXPENSE' ? 'focus:ring-rose-200' : 'focus:ring-[#20b2aa]/30'}`} placeholder="Observações importantes..." />
@@ -3314,7 +3411,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <div className="flex flex-wrap gap-2">
                       {attachedUrls.map((url, i) => (
                         <div key={i} className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-                          <span className="text-[10px] font-bold text-slate-400 truncate max-w-[100px]">Arquivo Salvo</span>
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[100px] flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                            Ver Arquivo
+                          </a>
                           <button type="button" onClick={() => setAttachedUrls(attachedUrls.filter((_, idx) => idx !== i))} className="text-rose-500 font-bold ml-2">×</button>
                         </div>
                       ))}
@@ -3338,7 +3438,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     setIsDuplicatingTx(false);
                     setOriginalTxDescription('');
                   }}
-                  className="px-8 py-3.5 rounded-full font-bold text-sm text-slate-500 hover:bg-slate-50 transition active:scale-[0.98]"
+                  disabled={isSubmitting}
+                  className="px-8 py-3.5 rounded-full font-bold text-sm text-slate-500 hover:bg-slate-50 transition active:scale-[0.98] disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -3349,16 +3450,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     const event = new Event('submit', { cancelable: true }) as any;
                     handleSaveTx({ ...event, currentTarget: form, preventDefault: () => { } } as any, false);
                   }}
-                  className="bg-[#004a7c] text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-xl hover:bg-[#003a63] transition active:scale-[0.98]"
+                  disabled={isSubmitting}
+                  className="bg-[#004a7c] text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-xl hover:bg-[#003a63] transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Salvar e novo
+                  {isSubmitting ? 'Salvando...' : 'Salvar e novo'}
                 </button>
                 <button
                   type="submit"
                   form="txForm"
-                  className={`text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-xl transition active:scale-[0.98] ${editingTx?.type === 'EXPENSE' ? 'bg-[#f43f5e] hover:bg-[#e11d48]' : 'bg-[#20b2aa] hover:bg-[#1a8e88]'}`}
+                  disabled={isSubmitting}
+                  className={`text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-xl transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${editingTx?.type === 'EXPENSE' ? 'bg-[#f43f5e] hover:bg-[#1a8e88]' : 'bg-[#20b2aa] hover:bg-[#1a8e88]'}`}
                 >
-                  Salvar e fechar
+                  {isSubmitting ? 'Salvando...' : 'Salvar e fechar'}
                 </button>
               </div>
             </div>
@@ -3370,11 +3473,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         isCatModalOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl p-10">
-              <h3 className="text-xl font-black mb-8 text-slate-900 uppercase tracking-widest">Nova Categoria</h3>
+              <h3 className="text-xl font-black mb-8 text-slate-900 uppercase tracking-widest">{editingCat ? 'Editar Categoria' : 'Nova Categoria'}</h3>
               <form onSubmit={handleSaveCat} className="space-y-6">
+                <input type="hidden" name="type" value={editingCat?.type || 'INCOME'} />
                 <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nome</label><input required name="name" placeholder="Ex: Manutenção..." defaultValue={editingCat?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
-                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Cor de Destaque</label><select name="color" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value="indigo">Índigo</option><option value="emerald">Esmeralda</option><option value="rose">Rosa</option><option value="amber">Âmbar</option><option value="blue">Azul</option><option value="teal">Teal</option></select></div>
-                <div className="pt-4 flex gap-4"><button type="button" onClick={() => setIsCatModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Sair</button><button type="submit" className="flex-1 bg-slate-900 text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest">Criar</button></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Descrição</label><input name="description" placeholder="Opcional" defaultValue={editingCat?.description} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Cor de Destaque</label><select name="color" defaultValue={editingCat?.color || 'indigo'} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value="indigo">Índigo</option><option value="emerald">Esmeralda</option><option value="rose">Rosa</option><option value="amber">Âmbar</option><option value="blue">Azul</option><option value="teal">Teal</option></select></div>
+                <div className="pt-4 flex gap-4"><button type="button" onClick={() => setIsCatModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Sair</button><button type="submit" className="flex-1 bg-slate-900 text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest">{editingCat ? 'Salvar' : 'Criar'}</button></div>
               </form>
             </div>
           </div>
@@ -4143,9 +4248,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.category}</td>
                             <td className="px-8 py-5">
                               {t.attachmentUrls && t.attachmentUrls.length > 0 ? (
-                                <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.415 6.414a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                <a href={t.attachmentUrls[0]} target="_blank" rel="noopener noreferrer" className="inline-block hover:scale-110 transition-transform" title="Ver anexo">
+                                  <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.415 6.414a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                </a>
                               ) : (
-                                <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                <span title="Sem anexo">
+                                  <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                </span>
                               )}
                             </td>
                             <td className="px-8 py-5 text-right">
@@ -4380,7 +4489,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             onClick={() => setActiveTab('overview')}
             className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'overview' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            {activeTab === 'overview' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+            {activeTab === 'overview' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
             <svg className={`w-8 h-8 ${activeTab === 'overview' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
@@ -4392,7 +4501,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               onClick={() => setActiveTab('finances')}
               className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'finances' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
-              {activeTab === 'finances' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+              {activeTab === 'finances' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
               <svg className={`w-8 h-8 ${activeTab === 'finances' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -4404,7 +4513,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             onClick={() => setActiveTab('agenda')}
             className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'agenda' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            {activeTab === 'agenda' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+            {activeTab === 'agenda' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
             <svg className={`w-8 h-8 ${activeTab === 'agenda' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
@@ -4416,7 +4525,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               onClick={() => setActiveTab('members')}
               className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative ${activeTab === 'members' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
-              {activeTab === 'members' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+              {activeTab === 'members' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
               <svg className={`w-8 h-8 ${activeTab === 'members' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
@@ -4435,6 +4544,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </button>
         </div>
       </nav>
+
     </div >
   );
 };

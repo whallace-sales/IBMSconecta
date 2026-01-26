@@ -1,0 +1,36 @@
+Error: Tag <div started at line 2293 was unclosed when } reached at 2466
+Error: Tag <div started at line 2294 was unclosed when } reached at 2466
+Error: Tag <div started at line 2296 was unclosed when } reached at 2466
+Error: Tag <div started at line 1267 was unclosed when } reached at 2468
+Error: Tag <main started at line 1394 was unclosed when } reached at 2468
+Error: Tag <div started at line 1473 was unclosed when } reached at 2468
+Error: Unmatched closing brace } at line 2468
+Error: Unmatched closing tag </div at line 2469
+Error: Unmatched closing brace } at line 2470
+Error: Tag <div started at line 2523 was unclosed when } reached at 2552
+Error: Unmatched closing tag </div at line 2554
+Error: Unmatched closing brace } at line 2556
+Error: Unmatched closing brace } at line 2557
+Error: Unmatched closing brace } at line 2557
+Error: Unmatched closing tag </div at line 2558
+Error: Unmatched closing brace } at line 2559
+Error: Unmatched closing brace } at line 2562
+Error: Unmatched closing brace } at line 2562
+Error: Unmatched closing tag </div at line 2563
+Error: Unmatched closing tag </div at line 2564
+Error: Unmatched closing tag </div at line 2681
+Error: Unmatched closing tag </div at line 2682
+Error: Unmatched closing brace } at line 2683
+Error: Tag <div started at line 2688 was unclosed when } reached at 2765
+Error: Unmatched closing tag </div at line 2767
+Error: Unmatched closing brace } at line 2768
+Error: Unmatched closing tag </div at line 3121
+Error: Unmatched closing brace } at line 3122
+Error: Unmatched closing tag </div at line 3161
+Error: Unmatched closing tag </main at line 3162
+Error: Tag <div started at line 4405 was unclosed when } reached at 4405
+Error: Tag <div started at line 4417 was unclosed when } reached at 4417
+Error: Tag <div started at line 4429 was unclosed when } reached at 4429
+Error: Tag <div started at line 4441 was unclosed when } reached at 4441
+Error: Unmatched closing tag </div at line 4461
+Error: Unmatched closing brace } at line 4463

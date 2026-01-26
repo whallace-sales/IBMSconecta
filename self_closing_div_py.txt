@@ -1,0 +1,8 @@
+1592: <div
+                                        className="w-4 h-4 rounded-full flex-shrink-0 mt-1"
+                                        style={{ backgroundColor: eventCat.color }}
+                                      />
+4405: <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+4417: <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+4429: <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+4441: <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full" />

@@ -124,13 +124,9 @@ export const getTransactions = async (): Promise<Transaction[]> => {
             category: t.categories?.name || 'GERAL',
             date: t.date,
             member: t.member_name,
-            isPaid: t.is_paid,
-            costCenter: t.cost_center,
-            paymentType: t.payment_type,
-            docNumber: t.doc_number,
-            competence: t.competence,
-            notes: t.notes,
-            attachmentUrls: t.attachment_urls
+            attachmentUrls: t.attachment_urls || t.attachments || t.files || [],
+            isPaid: t.is_paid !== undefined ? t.is_paid : (t.paid !== undefined ? t.paid : t.status === 'PAID'),
+            paymentType: t.payment_type || t.payment_method,
         }));
     } catch (error) {
         console.error('Error fetching transactions:', error);
