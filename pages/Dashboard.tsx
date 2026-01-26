@@ -556,7 +556,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     const txData = {
       description: formData.get('description') as string,
-      amount: parseFloat((formData.get('amount') as string).replace(',', '.')),
+      amount: parseFloat((formData.get('amount') as string).replace(/\./g, '').replace(',', '.')),
       type: formData.get('type') as 'INCOME' | 'EXPENSE',
       category_id: catId,
       date: formData.get('date') as string,
@@ -1108,6 +1108,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     alert('Remoção de membros desabilitada nesta versão.');
   };
 
+  const handleArchiveMember = async () => {
+    if (!viewingMember) return;
+    // Confirm logic
+    if (confirm(`Deseja realmente arquivar o membro ${viewingMember.name}?`)) {
+      // Future implementation: await supabase.from('profiles').update({ is_active: false }).eq('id', viewingMember.id);
+      alert('Funcionalidade de arquivamento será disponibilizada na próxima atualização do banco de dados (coluna is_active necessária).');
+    }
+  };
+
+  const handlePrintMember = () => {
+    window.print();
+  };
+
   const handleDeleteEvent = async (id: string) => {
     if (confirm('Deseja realmente excluir este evento?')) {
       await supabase.from('events').delete().eq('id', id);
@@ -1401,6 +1414,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         }
         ::-webkit-scrollbar-thumb:hover {
           background: #cbd5e1;
+        }
+        @media print {
+          @page {
+            margin: 5mm;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .printable-modal, .printable-modal * {
+            visibility: visible;
+          }
+          .printable-modal {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+            overflow: visible !important;
+            margin: 0;
+            padding: 0;
+            background: white;
+            z-index: 9999;
+          }
+          /* Hide buttons and overlays in print */
+          .print-hide, .print\:hidden {
+            display: none !important;
+          }
         }
       `}</style>
       {/* Sidebar */}
@@ -3271,7 +3311,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       {
         isTxModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
             <div className="bg-[#f8fafb] w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
               {/* Modal Header */}
               <div className={`px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white`}>
@@ -3330,7 +3370,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       <span className="pl-4 text-slate-400 font-bold">R$</span>
                       <input
                         required name="amount" type="text" inputMode="decimal"
-                        defaultValue={editingTx?.amount}
+                        defaultValue={editingTx?.amount !== undefined ? editingTx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
                         placeholder="0,00"
                         onKeyPress={(e) => {
                           if (!/[0-9,.]/.test(e.key)) e.preventDefault();
@@ -3354,7 +3394,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="block text-sm font-bold text-slate-900">{editingTx?.type === 'EXPENSE' ? 'Pago à' : 'Recebido de'}</label>
-                    <select name="member" defaultValue={editingTx?.member} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600">
+                    <select name="member" defaultValue={editingTx?.member || ''} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-lg outline-none font-medium text-slate-600 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-4">
                       <option value="">Selecione</option>
                       {allUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
                     </select>
@@ -4049,10 +4089,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       {
         viewingMember && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-10 animate-in fade-in duration-300">
-            <div className="bg-[#f8f9fc] w-full max-w-6xl h-full rounded-[40px] shadow-2xl flex flex-col overflow-hidden">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-10 animate-in fade-in duration-300 printable-modal print:items-start print:pt-0 print:p-0">
+            <div className="bg-[#f8f9fc] w-full max-w-6xl h-full rounded-[40px] shadow-2xl flex flex-col overflow-hidden print:overflow-visible print:h-auto print:rounded-none print:shadow-none px-4">
               {/* Profile Header */}
-              <div className="bg-white px-10 py-8 border-b border-slate-100 flex items-center gap-8 relative shrink-0">
+              <div className={`bg-white px-10 py-8 border-b border-slate-100 flex items-center gap-8 relative shrink-0 ${viewingMemberSubTab === 'finances' ? 'print:hidden' : ''}`}>
                 <div className={`w-36 h-36 rounded-3xl overflow-hidden border-4 border-white shadow-xl shrink-0 relative group ${viewingMemberSubTab === 'edit' ? 'cursor-pointer' : ''}`}
                   onClick={() => {
                     if (viewingMemberSubTab === 'edit') {
@@ -4117,9 +4157,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {viewingMember.role}</span>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button className="bg-rose-500 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-100">Arquivar</button>
-                  <button className="bg-[#004a7c] text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-2">
+                <div className={`flex gap-2 print:hidden ${['finances', 'edit'].includes(viewingMemberSubTab) ? 'invisible' : ''}`}>
+                  <button onClick={handleArchiveMember} className="bg-rose-500 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-100 transition hover:bg-rose-600">Arquivar</button>
+                  <button onClick={handlePrintMember} className="bg-[#004a7c] text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-2 hover:bg-[#003a63] transition">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                     Imprimir
                   </button>
@@ -4128,7 +4168,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               </div>
 
               {/* Internal Tabs */}
-              <div className="bg-white px-10 border-b border-slate-100 flex gap-8 shrink-0">
+              <div className={`bg-white px-10 border-b border-slate-100 flex gap-8 shrink-0 print:hidden ${viewingMemberSubTab === 'finances' ? 'print:hidden' : ''}`}>
                 <button onClick={() => setViewingMemberSubTab('info')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${viewingMemberSubTab === 'info' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>Informações</button>
                 <button onClick={() => setViewingMemberSubTab('finances')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${viewingMemberSubTab === 'finances' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>Financeiro</button>
                 <button onClick={() => {
@@ -4141,7 +4181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               </div>
 
               {/* Profile Content Area */}
-              <div className="flex-grow overflow-y-auto p-10 bg-[#f8f9fc]">
+              <div className="flex-grow overflow-y-auto p-10 bg-[#f8f9fc] print:bg-white print:p-0 print:overflow-visible print:h-auto">
                 {viewingMemberSubTab === 'info' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
                     <div className="space-y-8">
@@ -4208,69 +4248,202 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 )}
 
                 {viewingMemberSubTab === 'finances' && (
-                  <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-slide-up">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          <th className="px-8 py-5 flex items-center gap-2">
-                            Data
-                            <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
-                          </th>
-                          <th className="px-8 py-5">
-                            <div className="flex items-center gap-2">
-                              Nome
+                  <div className="space-y-6 animate-slide-up">
+                    {/* Finance Toolbar */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{transactions.filter(t => t.member === viewingMember.name).length} lançamentos</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Action Buttons */}
+                        <button
+                          onClick={() => {
+                            setEditingTx({ type: 'INCOME', amount: 0, date: new Date().toISOString().split('T')[0], category: '', description: '', member: viewingMember.name } as Transaction);
+                            setIsTxModalOpen(true);
+                          }}
+                          className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-emerald-600 transition flex items-center gap-2"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                          Receita
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingTx({ type: 'EXPENSE', amount: 0, date: new Date().toISOString().split('T')[0], category: '', description: '', member: viewingMember.name } as Transaction);
+                            setIsTxModalOpen(true);
+                          }}
+                          className="bg-rose-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-rose-600 transition flex items-center gap-2"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                          Despesa
+                        </button>
+
+                        <div className="w-px h-6 bg-slate-200 mx-2"></div>
+
+                        {/* Export Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const memberTxs = transactions.filter(t => t.member === viewingMember.name);
+                              const csvContent = "data:text/csv;charset=utf-8,"
+                                + "Data,Nome,Descrição,Categoria,Tipo,Valor,Status\n"
+                                + memberTxs.map(t => `${t.date},${t.member},${t.description},${t.category},${t.type},${t.amount},${t.isPaid ? 'Pago' : 'Pendente'}`).join("\n");
+                              const encodedUri = encodeURI(csvContent);
+                              const link = document.createElement("a");
+                              link.setAttribute("href", encodedUri);
+                              link.setAttribute("download", `extrato_${viewingMember.name.replace(/\s+/g, '_').toLowerCase()}.csv`);
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 transition"
+                            title="Exportar CSV"
+                          >
+                            CSV
+                          </button>
+                          <button
+                            onClick={() => {
+                              const memberTxs = transactions.filter(t => t.member === viewingMember.name);
+                              const total = memberTxs.reduce((acc, t) => t.type === 'INCOME' ? acc + t.amount : acc - t.amount, 0);
+
+                              let html = `
+                                 <html>
+                                   <head>
+                                     <meta charset="utf-8">
+                                     <style>body{font-family:sans-serif;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #ddd;padding:8px;} th{background-color:#f2f2f2;}</style>
+                                   </head>
+                                   <body>
+                                     <h3>Extrato: ${viewingMember.name}</h3>
+                                     <table>
+                                       <thead><tr><th>Data</th><th>Nome</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th></tr></thead>
+                                       <tbody>
+                                         ${memberTxs.map(t => `<tr><td>${t.date}</td><td>${t.member}</td><td>${t.description}</td><td>${t.category}</td><td>${t.type === 'INCOME' ? 'Receita' : 'Despesa'}</td><td>${t.type === 'EXPENSE' ? '-' : ''}${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`).join('')}
+                                         <tr>
+                                           <td colspan="5" style="text-align:right;font-weight:bold;">Saldo Total</td>
+                                           <td style="font-weight:bold;color:${total >= 0 ? 'green' : 'red'}">${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                         </tr>
+                                       </tbody>
+                                     </table>
+                                   </body>
+                                 </html>
+                               `;
+                              const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `extrato_${viewingMember.name.replace(/\s+/g, '_').toLowerCase()}.xls`;
+                              a.click();
+                            }}
+                            className="bg-[#1D6F42] text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#155232] transition"
+                            title="Exportar Excel"
+                          >
+                            Excel
+                          </button>
+                          <button
+                            onClick={() => {
+                              const style = document.createElement('style');
+                              style.innerHTML = `@media print { @page { size: landscape; margin: 10mm; } }`;
+                              document.head.appendChild(style);
+                              window.print();
+                              setTimeout(() => { if (document.head.contains(style)) document.head.removeChild(style); }, 2000);
+                            }}
+                            className="bg-slate-200 text-slate-600 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-slate-300 transition"
+                            title="Imprimir / Salvar PDF"
+                          >
+                            PDF/Print
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden print:shadow-none print:border-none print:rounded-none">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <th className="px-8 py-5 flex items-center gap-2">
+                              Data
                               <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
-                            </div>
-                          </th>
-                          <th className="px-8 py-5">
-                            <div className="flex items-center gap-2">
-                              Categoria
-                              <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
-                            </div>
-                          </th>
-                          <th className="px-8 py-5">
-                            <div className="flex items-center gap-2">
-                              Arquivos
-                              <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
-                            </div>
-                          </th>
-                          <th className="px-8 py-5 text-right flex items-center justify-end gap-2">
-                            Total
-                            <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {transactions.filter(t => t.member === viewingMember.name).map(t => (
-                          <tr key={t.id} className="hover:bg-slate-50 transition group">
-                            <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.date.split('-').reverse().join('/')}</td>
-                            <td className="px-8 py-5 text-[11px] font-bold text-slate-700">{t.member}</td>
-                            <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.category}</td>
-                            <td className="px-8 py-5">
-                              {t.attachmentUrls && t.attachmentUrls.length > 0 ? (
-                                <a href={t.attachmentUrls[0]} target="_blank" rel="noopener noreferrer" className="inline-block hover:scale-110 transition-transform" title="Ver anexo">
-                                  <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.415 6.414a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                </a>
-                              ) : (
-                                <span title="Sem anexo">
-                                  <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-8 py-5 text-right">
-                              <div className="flex items-center justify-end gap-3">
-                                <span className={`text-[11px] font-black ${t.type === 'INCOME' ? 'text-slate-700' : 'text-rose-500'}`}>
-                                  {formatCurrency(t.amount)}
-                                </span>
-                                <div className="w-4 h-4 bg-emerald-500 rounded flex items-center justify-center">
-                                  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                                </div>
+                            </th>
+                            <th className="px-8 py-5">
+                              <div className="flex items-center gap-2">
+                                Nome
+                                <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
                               </div>
-                            </td>
+                            </th>
+                            <th className="px-8 py-5">
+                              <div className="flex items-center gap-2">
+                                Descrição
+                                <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                              </div>
+                            </th>
+                            <th className="px-8 py-5">
+                              <div className="flex items-center gap-2">
+                                Categoria
+                                <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                              </div>
+                            </th>
+                            <th className="px-8 py-5">
+                              <div className="flex items-center gap-2">
+                                Arquivos
+                                <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                              </div>
+                            </th>
+                            <th className="px-8 py-5 text-right flex items-center justify-end gap-2">
+                              Total
+                              <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {transactions.filter(t => t.member === viewingMember.name).map(t => (
+                            <tr key={t.id} className="hover:bg-slate-50 transition group">
+                              <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.date.split('-').reverse().join('/')}</td>
+                              <td className="px-8 py-5 text-[11px] font-bold text-slate-700">{t.member}</td>
+                              <td className="px-8 py-5 text-[11px] font-bold text-slate-700">{t.description}</td>
+                              <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.category}</td>
+                              <td className="px-8 py-5">
+                                {t.attachmentUrls && t.attachmentUrls.length > 0 ? (
+                                  <a href={t.attachmentUrls[0]} target="_blank" rel="noopener noreferrer" className="inline-block hover:scale-110 transition-transform" title="Ver anexo">
+                                    <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.415 6.414a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                  </a>
+                                ) : (
+                                  <span title="Sem anexo">
+                                    <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-8 py-5 text-right">
+                                <div className="flex items-center justify-end gap-3">
+                                  <span className={`text-[11px] font-black ${t.type === 'INCOME' ? 'text-slate-700' : 'text-rose-500'}`}>
+                                    {t.type === 'EXPENSE' && '- '}{formatCurrency(t.amount)}
+                                  </span>
+                                  <div className="w-4 h-4 bg-emerald-500 rounded flex items-center justify-center">
+                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-slate-50 border-t border-slate-200">
+                          {/* Total Calculation Row */}
+                          {(() => {
+                            const memberTxs = transactions.filter(t => t.member === viewingMember.name);
+                            const totalIncome = memberTxs.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0);
+                            const totalExpense = memberTxs.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
+                            const balance = totalIncome - totalExpense;
+
+                            return (
+                              <tr>
+                                <td colSpan={5} className="px-8 py-5 text-right font-black text-xs text-slate-500 uppercase tracking-widest">Saldo Total</td>
+                                <td className="px-8 py-5 text-right">
+                                  <span className={`text-xl font-black ${balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(balance)}</span>
+                                </td>
+                              </tr>
+                            );
+                          })()}
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
                 )}
 
