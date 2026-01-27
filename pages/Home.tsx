@@ -11,6 +11,7 @@ interface HomeProps {
 export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
   const [latestPosts, setLatestPosts] = useState<Post[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   useEffect(() => {
     getPosts().then(posts => {
@@ -98,7 +99,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
                 const monthName = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
 
                 return (
-                  <div key={event.id} className="flex gap-4 p-4 rounded-2xl hover:bg-slate-50 transition border border-transparent hover:border-slate-100 group">
+                  <div key={event.id} onClick={() => setSelectedEvent(event)} className="flex gap-4 p-4 rounded-2xl hover:bg-slate-50 transition border border-transparent hover:border-slate-100 group cursor-pointer">
                     <div className="bg-indigo-50 text-indigo-600 w-16 h-16 rounded-xl flex flex-col items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition duration-300">
                       <span className="text-xs font-bold uppercase">{monthName}</span>
                       <span className="text-xl font-black">{day}</span>
@@ -122,6 +123,79 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
           </div>
         </div>
       </section>
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedEvent(null)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-indigo-600 p-6 text-white relative">
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="absolute top-4 right-4 text-white/70 hover:text-white transition p-2 hover:bg-white/10 rounded-full"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+
+              <div className="flex flex-col items-center text-center mt-2">
+                {(() => {
+                  const [y, m, d] = selectedEvent.startDate.split('-').map(Number);
+                  const dateObj = new Date(y, m - 1, d);
+                  const monthName = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase();
+                  return (
+                    <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center mb-4 border border-white/20 shadow-inner">
+                      <span className="text-xs font-bold uppercase tracking-widest text-indigo-50">{monthName}</span>
+                      <span className="text-3xl font-black text-white">{d}</span>
+                    </div>
+                  );
+                })()}
+                <h3 className="text-2xl font-bold leading-tight mb-2">{selectedEvent.title}</h3>
+                <p className="text-indigo-100 font-medium flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  {selectedEvent.startTime ? selectedEvent.startTime.substring(0, 5) : 'Dia todo'}
+                  {selectedEvent.endTime ? ` - ${selectedEvent.endTime.substring(0, 5)}` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-8 space-y-6">
+              {selectedEvent.location && (
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-1">Localização</h4>
+                    <p className="text-gray-600">{selectedEvent.location}</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedEvent.description && (
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-1">Detalhes</h4>
+                    <div
+                      className="text-gray-600 text-sm leading-relaxed [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"
+                      dangerouslySetInnerHTML={{ __html: selectedEvent.description }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-4">
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-xl transition"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
