@@ -1865,7 +1865,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       Aniversariantes de {monthsList[selectedMonth].name}
                     </h3>
                   </div>
-                  <div className="overflow-x-auto">
+                  {/* Desktop Table */}
+                  <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
@@ -1903,6 +1904,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Card View */}
+                  <div className="lg:hidden divide-y divide-slate-100">
+                    {selectedMonthMembers.map(u => (
+                      <div key={u.id} className="p-5 flex items-center gap-4 hover:bg-slate-50 transition active:bg-slate-100">
+                        <div className="flex flex-col items-center justify-center bg-indigo-50 w-12 h-12 rounded-xl border border-indigo-100 shrink-0">
+                          <span className="text-[9px] font-black uppercase text-indigo-400">DIA</span>
+                          <span className="text-lg font-black text-indigo-700 leading-none">{u.birthDate!.split('-')[2]}</span>
+                        </div>
+                        <div className="flex-grow min-w-0">
+                          <p className="font-bold text-slate-900 leading-tight">{u.name}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">{u.phone || 'Sem contato'}</p>
+                        </div>
+                        <img
+                          src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`}
+                          className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
+                        />
+                      </div>
+                    ))}
+                    {selectedMonthMembers.length === 0 && (
+                      <div className="p-10 text-center text-slate-400 font-medium italic text-sm">Nenhum aniversariante encontrado.</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2407,7 +2431,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         Aniversariantes de {monthsList[selectedMonth].name}
                       </h3>
                     </div>
-                    <div className="overflow-x-auto">
+                    {/* Desktop Table */}
+                    <div className="hidden lg:block overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">

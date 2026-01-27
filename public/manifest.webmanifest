@@ -1,7 +1,6 @@
 {
-    "name": "IgrejaConecta",
-    "short_name": "IgrejaCT",
-    "description": "Sistema de Gestão Eclesiástica e Comunidade",
+    "name": "Igreja Conecta Admin",
+    "short_name": "Conecta",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
@@ -9,9 +8,16 @@
     "icons": [
         {
             "src": "/icon.png",
-            "sizes": "512x512",
+            "sizes": "192x192 512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "/icon.png",
+            "sizes": "any",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "maskable"
         }
-    ]
+    ],
+    "orientation": "portrait",
+    "scope": "/"
 }
