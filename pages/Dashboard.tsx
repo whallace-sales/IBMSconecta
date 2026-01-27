@@ -1841,29 +1841,70 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </div>
               </div>
 
-              {/* Aniversariantes do Mês */}
-              <div className="bg-white p-6 md:p-8 rounded-3xl md:rounded-[32px] border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="bg-pink-100 p-3 rounded-xl text-pink-600">
-                    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.464 15.05a1 1 0 010 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 0z" /></svg>
-                  </div>
-                  <h3 className="text-2xl md:text-xl font-black text-slate-800 tracking-tight">Aniversariantes do Mês</h3>
+              {/* Aniversariantes com Filtro de Mês */}
+              <div className="col-span-1 lg:col-span-12 space-y-8 mt-4">
+                {/* Month Selector */}
+                <div className="flex flex-wrap gap-2 justify-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                  {monthsList.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedMonth(m.id)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedMonth === m.id
+                        ? 'bg-indigo-600 text-white shadow-lg scale-110'
+                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                        }`}
+                    >
+                      {m.name} ({birthdayCounts[m.id]})
+                    </button>
+                  ))}
                 </div>
-                {birthdayMembers.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {birthdayMembers.map(m => (
-                      <div key={m.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-3 hover:shadow-md transition">
-                        <img src={m.avatarUrl || `https://i.pravatar.cc/100?u=${m.id}`} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" alt="Membro" />
-                        <div>
-                          <p className="font-bold text-slate-900 leading-tight text-sm md:text-sm">{m.name}</p>
-                          <p className="text-[9px] text-indigo-600 font-black uppercase mt-0.5">Dia {m.birthDate!.split('-')[2]}</p>
-                        </div>
-                      </div>
-                    ))}
+
+                <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="p-8 border-b border-slate-100">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                      Aniversariantes de {monthsList[selectedMonth].name}
+                    </h3>
                   </div>
-                ) : (
-                  <p className="text-slate-400 italic font-medium p-10 text-center bg-slate-50 rounded-3xl">Nenhum aniversário registrado para este mês.</p>
-                )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                          <th className="px-10 py-5 w-24">Dia</th>
+                          <th className="px-10 py-5 w-32">Imagem</th>
+                          <th className="px-10 py-5">Nome</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {selectedMonthMembers.map((u, index) => (
+                          <tr key={u.id} className={`transition ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                            <td className="px-10 py-5 font-black text-slate-400 text-lg">
+                              {u.birthDate!.split('-')[2]}
+                            </td>
+                            <td className="px-10 py-5">
+                              <img
+                                src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`}
+                                className="w-14 h-14 rounded-full border-4 border-white shadow-md object-cover"
+                              />
+                            </td>
+                            <td className="px-10 py-5">
+                              <div className="font-bold text-indigo-900 text-lg tracking-tight">{u.name}</div>
+                              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                {u.phone || 'Sem telefone'}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {selectedMonthMembers.length === 0 && (
+                          <tr>
+                            <td colSpan={3} className="px-10 py-20 text-center text-slate-400 font-medium italic">
+                              Nenhum aniversariante encontrado para este mês.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           )}
