@@ -2568,7 +2568,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <div className="flex justify-between items-center">
                 <h3 className="text-2xl font-black text-slate-900 tracking-tight">Conteúdo Web</h3>
                 {user.role !== UserRole.READER && (
-                  <button onClick={() => { setEditingPost(null); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition">+ Novo Conteúdo</button>
+                  <button onClick={() => { setEditingPost(null); setPostContent(''); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition">+ Novo Conteúdo</button>
                 )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -2582,11 +2582,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       </div>
                       <h4 className="font-black text-slate-900 text-lg mb-2 leading-tight">{post.title}</h4>
                       <p className="text-slate-500 text-sm line-clamp-2 mb-8 leading-relaxed font-medium">
-                        {post.content.replace(/<[^>]*>/g, '')}
+                        {(() => {
+                          if (typeof window !== 'undefined') {
+                            const doc = new DOMParser().parseFromString(post.content, 'text/html');
+                            return doc.body.textContent || "";
+                          }
+                          return post.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
+                        })()}
                       </p>
                       {user.role !== UserRole.READER && (
                         <div className="flex gap-4 pt-6 border-t border-slate-50">
-                          <button onClick={() => { setEditingPost(post); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                          <button onClick={() => { setEditingPost(post); setPostContent(post.content); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
                           <button onClick={() => togglePostVisibility(post.id)} className={`${post.isActive ? 'text-orange-500' : 'text-emerald-500'} font-black text-[10px] uppercase hover:underline`}>{post.isActive ? 'Ocultar' : 'Exibir'}</button>
                           <button onClick={() => handleDeletePost(post.id)} className="text-red-500 font-black text-[10px] uppercase hover:underline">Excluir</button>
                         </div>
