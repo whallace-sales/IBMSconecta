@@ -14,9 +14,25 @@ import { INITIAL_CHURCH_INFO } from './constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<'home' | 'blog' | 'login' | 'dashboard' | 'post-detail'>('home');
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [view, setView] = useState<'home' | 'blog' | 'login' | 'dashboard' | 'post-detail'>(() => {
+    const savedView = localStorage.getItem('currentView');
+    return (savedView as 'home' | 'blog' | 'login' | 'dashboard' | 'post-detail') || 'home';
+  });
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(() => {
+    return localStorage.getItem('selectedPostId');
+  });
   const [churchInfo, setChurchInfo] = useState<ChurchInfo>(INITIAL_CHURCH_INFO);
+
+  // Persist navigation state
+  useEffect(() => {
+    localStorage.setItem('currentView', view);
+    if (selectedPostId) {
+      localStorage.setItem('selectedPostId', selectedPostId);
+    } else {
+      localStorage.removeItem('selectedPostId');
+    }
+  }, [view, selectedPostId]);
+
 
   // Fetch Church Info
   useEffect(() => {
@@ -75,6 +91,8 @@ const App: React.FC = () => {
     }
     setUser(null);
     setView('home');
+    localStorage.removeItem('currentView');
+    localStorage.removeItem('selectedPostId');
     window.location.reload(); // Garante limpeza total do estado
   };
 

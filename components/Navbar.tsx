@@ -56,7 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onNavigate, user, on
                 onClick={() => onNavigate('login')}
                 className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-100"
               >
-                Acessar Portal
+                Acessar Sistema
               </button>
             )}
           </div>
@@ -121,7 +121,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onNavigate, user, on
                 onClick={() => { onNavigate('login'); setIsOpen(false); }}
                 className="w-full text-left px-6 py-5 rounded-2xl text-2xl font-black bg-indigo-600 text-white shadow-lg shadow-indigo-100"
               >
-                Acessar Portal
+                Acessar Sistema
               </button>
             )}
           </div>
