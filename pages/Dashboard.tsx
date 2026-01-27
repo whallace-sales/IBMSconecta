@@ -56,7 +56,13 @@ const createCroppedImage = (imageSrc: string, scale: number, position: { x: numb
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'finances' | 'posts' | 'members' | 'reports' | 'agenda' | 'departamentos' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'finances' | 'posts' | 'members' | 'reports' | 'agenda' | 'departamentos' | 'settings'>(() => {
+    return (localStorage.getItem('dashboardActiveTab') as any) || 'overview';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dashboardActiveTab', activeTab);
+  }, [activeTab]);
   const [financeSubTab, setFinanceSubTab] = useState<'transactions' | 'categories'>('transactions');
   const [memberSubTab, setMemberSubTab] = useState<'list' | 'birthdays' | 'stats'>('list');
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());

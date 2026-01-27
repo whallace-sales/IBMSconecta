@@ -43,12 +43,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
 
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">Uma Família para Pertencer</h1>
           <p className="text-xl md:text-2xl mb-8 text-gray-200">Vivendo o evangelho de Cristo, servindo à comunidade e transformando vidas através do amor e da fé.</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col gap-4 justify-center items-center">
             <button
               onClick={() => onNavigate('blog')}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-full text-lg font-bold transition transform hover:scale-105"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-full text-lg font-bold transition transform hover:scale-105 w-full sm:w-auto"
             >
               Nossas Atividades
+            </button>
+            <button
+              onClick={() => onNavigate('login')}
+              className="text-white/80 hover:text-white text-sm font-semibold hover:underline mt-2 sm:hidden"
+            >
+              🔒 Acesso Restrito
             </button>
           </div>
         </div>
