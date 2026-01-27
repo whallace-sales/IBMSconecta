@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, UserRole, Transaction, Category, Post, ChurchInfo, CalendarEvent, EventCategory, Department, DepartmentRole, DepartmentMember } from '../types';
 import { INITIAL_CHURCH_INFO } from '../constants';
 import { Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
@@ -572,7 +571,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       // Tenta salvar anexos e outros campos. 
       // Se não existirem no banco, o saveWithRetry vai removê-los automaticamente.
       attachment_urls: fileUrls,
-      payment_type: formData.get('payment_type') as string || 'Único', // Default se não tiver no form
+      payment_type: formData.get('payment_type') as string || '�anico', // Default se não tiver no form
       competence: formData.get('competence') as string || null,
     };
 
@@ -608,7 +607,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           const badValue = newData[badColumn];
           delete newData[badColumn];
 
-          // Tenta SINÔNIMOS (estratégia de adaptação de schema)
+          // Tenta SIN�NIMOS (estratégia de adaptação de schema)
           if (badColumn === 'attachment_urls') newData['attachments'] = badValue;
           else if (badColumn === 'attachments') newData['files'] = badValue;
           else if (badColumn === 'files') newData['file_urls'] = badValue;
@@ -1010,7 +1009,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     setPasswordLoading(true);
     try {
-      // Atualiza a senha e TAMBÉM limpa o flag must_change_password no metadata
+      // Atualiza a senha e TAMB�0M limpa o flag must_change_password no metadata
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
         data: { must_change_password: false }
@@ -1026,7 +1025,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       // mas podemos forçar um reload ou atualizar localmente se necessário
       window.location.reload();
     } catch (error: any) {
-      alert('Erro ao alterar senha: ' + error.message);
+      if (error.message && error.message.includes('New password should be different')) {
+        alert('Por favor, escolha uma outra senha. Essa já foi usada.');
+      } else {
+        alert('Erro ao alterar senha: ' + error.message);
+      }
     } finally {
       setPasswordLoading(false);
     }
@@ -1365,10 +1368,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   // --- Lógica de Filtros e Stats ---
 
-  const globalStats = useMemo(() => ({
-    income: transactions.filter(t => t.type === 'INCOME').reduce((acc, curr) => acc + curr.amount, 0),
-    expense: transactions.filter(t => t.type === 'EXPENSE').reduce((acc, curr) => acc + curr.amount, 0),
-  }), [transactions]);
+  const globalStats = useMemo(() => {
+    const today = new Date();
+    const currentMonthStr = String(today.getMonth() + 1).padStart(2, '0');
+    const currentYearStr = String(today.getFullYear());
+    const prefix = `${currentYearStr}-${currentMonthStr}`;
+
+    const monthTxs = transactions.filter(t => t.date.startsWith(prefix));
+
+    const totalIncome = transactions.filter(t => t.type === 'INCOME').reduce((acc, c) => acc + c.amount, 0);
+    const totalExpense = transactions.filter(t => t.type === 'EXPENSE').reduce((acc, c) => acc + c.amount, 0);
+
+    return {
+      income: monthTxs.filter(t => t.type === 'INCOME').reduce((acc, curr) => acc + curr.amount, 0),
+      expense: monthTxs.filter(t => t.type === 'EXPENSE').reduce((acc, curr) => acc + curr.amount, 0),
+      balance: totalIncome - totalExpense
+    };
+  }, [transactions]);
 
   const demographics = useMemo(() => {
     const total = allUsers.length;
@@ -1508,10 +1524,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent pointer-events-none"></div>
 
         <div className={`p-6 border-b border-slate-800/50 flex items-center justify-center relative z-10 transition-all duration-500`}>
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-[1px] rounded-2xl shadow-xl shrink-0 group-hover/sidebar:scale-105 transition-transform duration-300">
-            <div className="bg-[#0f172a] p-2.5 rounded-[15px]">
-              <img src={churchInfo.logoUrl || '/logo.png'} className="w-8 h-8 object-contain" alt="Logo" />
-            </div>
+          <div className="shrink-0 group-hover/sidebar:scale-105 transition-transform duration-300 flex justify-center">
+            <img src={churchInfo.logoUrl || '/logo.png'} className={`object-contain transition-all duration-500 ${isSidebarCollapsed ? 'w-10 h-10' : 'h-14 w-auto max-w-[220px]'}`} alt="Logo" />
           </div>
 
           {/* Collapse Toggle Button */}
@@ -1529,6 +1543,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <SidebarItem id="overview" label="Início" icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
           <SidebarItem id="finances" label="Financeiro" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
           <SidebarItem id="posts" label="Conteúdo" roles={[UserRole.ADMIN, UserRole.READER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2-0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" /></svg>} />
+          <SidebarItem id="my_data" label="Dados" roles={[UserRole.READER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} />
           <SidebarItem id="members" label="Membros" roles={[UserRole.ADMIN]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
           <SidebarItem id="reports" label="Relatórios" roles={[UserRole.ADMIN, UserRole.TREASURER]} icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
           <SidebarItem id="agenda" label="Agenda" icon={<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
@@ -1631,19 +1646,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <div className="px-5 py-4 mb-2 border-b border-slate-50">
                   <p className="text-xs font-black text-slate-900 uppercase tracking-widest">Atalho Rápido</p>
                 </div>
-                <button
-                  onClick={() => {
-                    setEditingMember(user);
-                    setIsMemberModalOpen(true);
-                    setIsProfileDropdownOpen(false);
-                  }}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-300 group"
-                >
-                  <div className="bg-slate-100 p-2 rounded-xl group-hover:bg-indigo-100 transition">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                  </div>
-                  <span className="font-black text-[10px] uppercase tracking-[0.15em]">Editar Perfil</span>
-                </button>
+                {user.role !== UserRole.READER && (
+                  <button
+                    onClick={() => {
+                      setEditingMember(user);
+                      setIsMemberModalOpen(true);
+                      setIsProfileDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-300 group"
+                  >
+                    <div className="bg-slate-100 p-2 rounded-xl group-hover:bg-indigo-100 transition">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </div>
+                    <span className="font-black text-[10px] uppercase tracking-[0.15em]">Editar Perfil</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setIsChangePasswordModalOpen(true);
@@ -1722,7 +1739,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-pulse"></div>
                         <p className="text-indigo-100 font-bold text-[9px] uppercase tracking-[0.2em]">Saldo Disponível em Caixa</p>
                       </div>
-                      <p className="text-4xl md:text-5xl font-black tracking-tighter">{formatCurrency(globalStats.income - globalStats.expense)}</p>
+                      <p className="text-4xl md:text-5xl font-black tracking-tighter">{formatCurrency(globalStats.balance)}</p>
                     </div>
                   </div>
 
@@ -1989,7 +2006,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             <th className="px-6 py-4">Data</th>
                             <th className="px-6 py-4">Descrição</th>
                             <th className="px-6 py-4 text-center">Total</th>
-                            <th className="px-6 py-4 text-center">QUEM</th>
+                            <th className="px-6 py-4 text-left">QUEM</th>
                             <th className="px-6 py-4">Categoria</th>
                             <th className="px-6 py-4 text-center">Ações</th>
                           </tr>
@@ -2002,7 +2019,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                               </td>
                               <td className="px-6 py-4 text-slate-500 text-xs font-bold leading-tight">{t.date.split('-').reverse().join('/')}</td>
                               <td className="px-6 py-4">
-                                <div className="font-bold text-slate-700 text-xs tracking-tight">{t.description.split(' | Obs: ')[0]}</div>
+                                <div className="font-bold text-slate-700 text-xs tracking-tight uppercase">{t.description.split(' | Obs: ')[0]}</div>
                                 <div className="text-[10px] text-slate-400 font-medium">{t.description.split('-')[1] || ''}</div>
                               </td>
                               <td className="px-6 py-4 text-center">
@@ -2013,7 +2030,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                                   )}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 text-center text-slate-500 text-[10px] font-black uppercase">{t.member || ''}</td>
+                              <td className="px-6 py-4 text-left text-slate-500 text-[10px] font-black uppercase">{t.member || ''}</td>
                               <td className="px-6 py-4 text-slate-500 text-[10px] font-black uppercase tracking-tight">{t.category}</td>
                               <td className="px-6 py-4">
                                 <div className="flex justify-center gap-3 transition">
@@ -2051,7 +2068,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           <div className="flex justify-between items-start">
                             <div>
                               <p className="text-[10px] text-slate-400 font-bold uppercase">{t.date.split('-').reverse().join('/')}</p>
-                              <h4 className="font-bold text-slate-800 text-sm leading-tight">{t.description.split(' | Obs: ')[0]}</h4>
+                              <h4 className="font-bold text-slate-800 text-sm leading-tight uppercase">{t.description.split(' | Obs: ')[0]}</h4>
                             </div>
                             <div className={`font-black text-sm ${t.type === 'INCOME' ? 'text-emerald-500' : 'text-rose-500'}`}>
                               {t.type === 'INCOME' ? '' : '-'}{formatCurrency(t.amount)}
@@ -2237,6 +2254,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           <th className="px-8 py-5">Nascimento</th>
                           <th className="px-8 py-5">Idade</th>
                           <th className="px-8 py-5">Sexo</th>
+                          <th className="px-8 py-5">Contato</th>
                           <th className="px-8 py-5">Cidade</th>
                           <th className="px-8 py-5 text-center">Ações</th>
                         </tr>
@@ -2262,6 +2280,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             </td>
                             <td className="px-8 py-4 text-slate-500 text-[10px] font-black uppercase">
                               {u.gender === 'M' ? 'Masculino' : u.gender === 'F' ? 'Feminino' : '-'}
+                            </td>
+                            <td className="px-8 py-4 text-slate-500 text-xs font-medium">
+                              {u.phone || '-'}
                             </td>
                             <td className="px-8 py-4 text-slate-500 text-xs font-medium">
                               {u.city || '-'}
@@ -2297,7 +2318,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           <p className="font-bold text-slate-900 text-sm truncate">{u.name}</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[10px] text-slate-500">{u.role}</span>
-                            <span className="text-[10px] text-slate-300">•</span>
+                            <span className="text-[10px] text-slate-300">⬢</span>
                             <span className="text-[10px] text-slate-500 truncate">{u.email}</span>
                           </div>
                         </div>
@@ -2472,7 +2493,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
           {activeTab === 'posts' && (
             <div className="space-y-8 animate-slide-up">
-              <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-slate-900 tracking-tight">Conteúdo Web</h3><button onClick={() => { setEditingPost(null); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition">+ Novo Conteúdo</button></div>
+              <div className="flex justify-between items-center">
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Conteúdo Web</h3>
+                {user.role !== UserRole.READER && (
+                  <button onClick={() => { setEditingPost(null); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition">+ Novo Conteúdo</button>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {posts.map(post => (
                   <div key={post.id} className={`bg-white rounded-[40px] overflow-hidden shadow-sm border border-slate-100 group flex flex-col transition-all ${!post.isActive ? 'opacity-50 grayscale' : ''}`}>
@@ -2486,11 +2512,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       <p className="text-slate-500 text-sm line-clamp-2 mb-8 leading-relaxed font-medium">
                         {post.content.replace(/<[^>]*>/g, '')}
                       </p>
-                      <div className="flex gap-4 pt-6 border-t border-slate-50">
-                        <button onClick={() => { setEditingPost(post); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
-                        <button onClick={() => togglePostVisibility(post.id)} className={`${post.isActive ? 'text-orange-500' : 'text-emerald-500'} font-black text-[10px] uppercase hover:underline`}>{post.isActive ? 'Ocultar' : 'Exibir'}</button>
-                        <button onClick={() => handleDeletePost(post.id)} className="text-red-500 font-black text-[10px] uppercase hover:underline">Excluir</button>
-                      </div>
+                      {user.role !== UserRole.READER && (
+                        <div className="flex gap-4 pt-6 border-t border-slate-50">
+                          <button onClick={() => { setEditingPost(post); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                          <button onClick={() => togglePostVisibility(post.id)} className={`${post.isActive ? 'text-orange-500' : 'text-emerald-500'} font-black text-[10px] uppercase hover:underline`}>{post.isActive ? 'Ocultar' : 'Exibir'}</button>
+                          <button onClick={() => handleDeletePost(post.id)} className="text-red-500 font-black text-[10px] uppercase hover:underline">Excluir</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -2498,6 +2526,516 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             </div>
           )}
 
+          {activeTab === 'my_data' && ((() => {
+            const viewingMember = user; return (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-10 animate-in fade-in duration-300 printable-modal print:items-start print:pt-0 print:p-0">
+                <div className="bg-[#f8f9fc] w-full max-w-6xl h-full rounded-[40px] shadow-2xl flex flex-col overflow-hidden print:overflow-visible print:h-auto print:rounded-none print:shadow-none px-4">
+                  {/* Profile Header */}
+                  <div className={`bg-white px-10 py-8 border-b border-slate-100 flex items-center gap-8 relative shrink-0 ${viewingMemberSubTab === 'finances' ? 'print:hidden' : ''}`}>
+                    <div className={`w-36 h-36 rounded-3xl overflow-hidden border-4 border-white shadow-xl shrink-0 relative group ${viewingMemberSubTab === 'edit' ? 'cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (viewingMemberSubTab === 'edit') {
+                          const fileInput = document.getElementById('viewingMemberAvatarInput') as HTMLInputElement;
+                          fileInput?.click();
+                        }
+                      }}>
+                      {viewingMemberSubTab === 'edit' ? (
+                        <>
+                          {(!isAvatarRemoved && (avatarPreview || editingMember?.avatarUrl)) ? (
+                            <img
+                              src={avatarPreview || editingMember?.avatarUrl}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-slate-50 flex items-center justify-center text-slate-300">
+                              <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center flex-col gap-2">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            <span className="text-white text-[9px] font-black uppercase tracking-widest text-center px-2">Alterar Foto</span>
+                          </div>
+                          {(!isAvatarRemoved && (avatarPreview || editingMember?.avatarUrl)) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsAvatarRemoved(true);
+                                setAvatarPreview(null);
+                                setTempAvatarFile(null);
+                              }}
+                              className="absolute top-2 right-2 bg-rose-500 text-white p-1.5 rounded-lg shadow-lg hover:bg-rose-600 transition"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <img src={viewingMember.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(viewingMember.name)}&background=random`} className="w-full h-full object-cover" />
+                      )}
+                      <input
+                        id="viewingMemberAvatarInput"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setTempAvatarFile(file);
+                            setAvatarPreview(URL.createObjectURL(file));
+                            setIsAvatarRemoved(false);
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex-grow">
+                      <h2 className="text-3xl font-black text-slate-800 tracking-tight">{viewingMember.name}</h2>
+                      <div className="flex flex-wrap gap-4 mt-3">
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> {viewingMember.city || 'Cidade não inf.'}</span>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg> {viewingMember.phone || 'Sem telefone'}</span>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {viewingMember.role}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className={`flex gap-2 print:hidden ${['finances', 'edit'].includes(viewingMemberSubTab) ? 'hidden' : ''}`}>
+                        {/* <button onClick={handleArchiveMember} className="bg-rose-500 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-100 transition hover:bg-rose-600">Arquivar</button> */}
+                        <button onClick={handlePrintMember} className="bg-[#004a7c] text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-2 hover:bg-[#003a63] transition">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                          Imprimir
+                        </button>
+                      </div>
+                      <button onClick={() => setActiveTab('overview')} className="p-3 text-slate-400 hover:text-slate-600 transition print:hidden"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    </div>
+                  </div>
+
+                  {/* Internal Tabs */}
+                  <div className={`bg-white px-10 border-b border-slate-100 flex gap-8 shrink-0 print:hidden ${viewingMemberSubTab === 'finances' ? 'print:hidden' : ''}`}>
+                    <button onClick={() => setViewingMemberSubTab('info')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${viewingMemberSubTab === 'info' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>Informações</button>
+                    <button onClick={() => setViewingMemberSubTab('finances')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${viewingMemberSubTab === 'finances' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>Financeiro</button>
+                    {user.role !== UserRole.READER && (
+                      <button onClick={() => {
+                        setEditingMember(viewingMember);
+                        setViewingMemberSubTab('edit');
+                        setAvatarPreview(null);
+                        setTempAvatarFile(null);
+                        setIsAvatarRemoved(false);
+                      }} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${viewingMemberSubTab === 'edit' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>Editar</button>
+                    )}
+                  </div>
+
+                  {/* Profile Content Area */}
+                  <div className="flex-grow overflow-y-auto p-10 bg-[#f8f9fc] print:bg-white print:p-0 print:overflow-visible print:h-auto">
+                    {viewingMemberSubTab === 'info' && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
+                        <div className="space-y-8">
+                          <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
+                              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Dados Pessoais</h4>
+                            </div>
+                            <div className="space-y-4">
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Nome Completo</span> <span className="text-xs font-bold text-slate-700">{viewingMember.name}</span></div>
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Nascimento</span> <span className="text-xs font-bold text-slate-700">{viewingMember.birthDate ? `${viewingMember.birthDate.split('-').reverse().join('/')} (${calculateAge(viewingMember.birthDate)} anos)` : '-'}</span></div>
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Gênero</span> <span className="text-xs font-bold text-slate-700">{viewingMember.gender === 'M' ? 'Masculino' : viewingMember.gender === 'F' ? 'Feminino' : '-'}</span></div>
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Escolaridade</span> <span className="text-xs font-bold text-slate-700">{viewingMember.education || '-'}</span></div>
+                              <div className="flex justify-between pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Estado Civil</span> <span className="text-xs font-bold text-slate-700">{viewingMember.maritalStatus || '-'}</span></div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Outras Informações</h4>
+                            </div>
+                            <div className="space-y-4">
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Cônjuge</span> <span className="text-xs font-bold text-slate-700">{viewingMember.spouseName || '-'}</span></div>
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Conversão</span> <span className="text-xs font-bold text-slate-700">{viewingMember.conversionDate ? viewingMember.conversionDate.split('-').reverse().join('/') : '-'}</span></div>
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Batizado</span> <span className="text-xs font-bold text-slate-700">{viewingMember.isBaptized ? 'Sim' : 'Não'}</span></div>
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Batismo</span> <span className="text-xs font-bold text-slate-700">{viewingMember.baptismDate ? viewingMember.baptismDate.split('-').reverse().join('/') : '-'}</span></div>
+                              <div className="flex justify-between pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Cadastrado em</span> <span className="text-xs font-bold text-slate-700">{viewingMember.createdAt ? new Date(viewingMember.createdAt).toLocaleDateString('pt-BR') : '-'}</span></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-8">
+                          <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="w-1.5 h-6 bg-sky-500 rounded-full"></div>
+                              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Contatos & Endereço</h4>
+                            </div>
+                            <div className="space-y-4">
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">E-mail</span> <span className="text-xs font-bold text-slate-700">{viewingMember.email}</span></div>
+                              <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-[10px] font-black text-slate-400 uppercase">Telefone</span> <span className="text-xs font-bold text-slate-700">{viewingMember.phone || '-'}</span></div>
+                              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Localização</div>
+                                <div className="text-xs font-bold text-slate-600 leading-relaxed">
+                                  {viewingMember.address || 'Sem endereço'}<br />
+                                  {viewingMember.neighborhood && `${viewingMember.neighborhood}, `}{viewingMember.city && `${viewingMember.city} - ${viewingMember.state || ''}`}<br />
+                                  {viewingMember.cep && `CEP: ${viewingMember.cep}`}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="w-1.5 h-6 bg-slate-800 rounded-full"></div>
+                              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Anotações</h4>
+                            </div>
+                            <p className="text-xs font-medium text-slate-500 italic leading-relaxed">
+                              {viewingMember.notes || 'Nenhuma observação interna registrada.'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {viewingMemberSubTab === 'finances' && (
+                      <div className="space-y-6 animate-slide-up">
+                        {/* Finance Toolbar */}
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{transactions.filter(t => t.member === viewingMember.name).length} lançamentos</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            {/* Action Buttons */}
+
+
+                            {/* Export Buttons */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  const memberTxs = transactions.filter(t => t.member === viewingMember.name);
+                                  const csvContent = "data:text/csv;charset=utf-8,"
+                                    + "Data,Nome,Descrição,Categoria,Tipo,Valor,Status\n"
+                                    + memberTxs.map(t => `${t.date},${t.member},${t.description},${t.category},${t.type},${t.amount},${t.isPaid ? 'Pago' : 'Pendente'}`).join("\n");
+                                  const encodedUri = encodeURI(csvContent);
+                                  const link = document.createElement("a");
+                                  link.setAttribute("href", encodedUri);
+                                  link.setAttribute("download", `extrato_${viewingMember.name.replace(/\s+/g, '_').toLowerCase()}.csv`);
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}
+                                className="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 transition"
+                                title="Exportar CSV"
+                              >
+                                CSV
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const memberTxs = transactions.filter(t => t.member === viewingMember.name);
+                                  const total = memberTxs.reduce((acc, t) => t.type === 'INCOME' ? acc + t.amount : acc - t.amount, 0);
+
+                                  let html = `
+                                 <html>
+                                   <head>
+                                     <meta charset="utf-8">
+                                     <style>body{font-family:sans-serif;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #ddd;padding:8px;} th{background-color:#f2f2f2;}</style>
+                                   </head>
+                                   <body>
+                                     <h3>Extrato: ${viewingMember.name}</h3>
+                                     <table>
+                                       <thead><tr><th>Data</th><th>Nome</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th></tr></thead>
+                                       <tbody>
+                                         ${memberTxs.map(t => `<tr><td>${t.date}</td><td>${t.member}</td><td>${t.description}</td><td>${t.category}</td><td>${t.type === 'INCOME' ? 'Receita' : 'Despesa'}</td><td>${t.type === 'EXPENSE' ? '-' : ''}${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`).join('')}
+                                         <tr>
+                                           <td colspan="5" style="text-align:right;font-weight:bold;">Saldo Total</td>
+                                           <td style="font-weight:bold;color:${total >= 0 ? 'green' : 'red'}">${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                         </tr>
+                                       </tbody>
+                                     </table>
+                                   </body>
+                                 </html>
+                               `;
+                                  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `extrato_${viewingMember.name.replace(/\s+/g, '_').toLowerCase()}.xls`;
+                                  a.click();
+                                }}
+                                className="bg-[#1D6F42] text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#155232] transition"
+                                title="Exportar Excel"
+                              >
+                                Excel
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const style = document.createElement('style');
+                                  style.innerHTML = `@media print { @page { size: landscape; margin: 10mm; } }`;
+                                  document.head.appendChild(style);
+                                  window.print();
+                                  setTimeout(() => { if (document.head.contains(style)) document.head.removeChild(style); }, 2000);
+                                }}
+                                className="bg-slate-200 text-slate-600 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-slate-300 transition"
+                                title="Imprimir / Salvar PDF"
+                              >
+                                PDF/Print
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden print:shadow-none print:border-none print:rounded-none">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <th className="px-8 py-5 flex items-center gap-2">
+                                  Data
+                                  <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                                </th>
+                                <th className="px-8 py-5">
+                                  <div className="flex items-center gap-2">
+                                    Nome
+                                    <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                                  </div>
+                                </th>
+                                <th className="px-8 py-5">
+                                  <div className="flex items-center gap-2">
+                                    Descrição
+                                    <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                                  </div>
+                                </th>
+                                <th className="px-8 py-5">
+                                  <div className="flex items-center gap-2">
+                                    Categoria
+                                    <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                                  </div>
+                                </th>
+                                <th className="px-8 py-5">
+                                  <div className="flex items-center gap-2">
+                                    Arquivos
+                                    <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                                  </div>
+                                </th>
+                                <th className="px-8 py-5 text-right flex items-center justify-end gap-2">
+                                  Total
+                                  <svg className="w-2.5 h-2.5 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15l-3.17 3.17z" /></svg>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {transactions.filter(t => t.member === viewingMember.name).map(t => (
+                                <tr key={t.id} className="hover:bg-slate-50 transition group">
+                                  <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.date.split('-').reverse().join('/')}</td>
+                                  <td className="px-8 py-5 text-[11px] font-bold text-slate-700">{t.member}</td>
+                                  <td className="px-8 py-5 text-[11px] font-bold text-slate-700">{t.description}</td>
+                                  <td className="px-8 py-5 text-[11px] font-bold text-slate-500">{t.category}</td>
+                                  <td className="px-8 py-5">
+                                    {t.attachmentUrls && t.attachmentUrls.length > 0 ? (
+                                      <a href={t.attachmentUrls[0]} target="_blank" rel="noopener noreferrer" className="inline-block hover:scale-110 transition-transform" title="Ver anexo">
+                                        <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.415 6.414a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                      </a>
+                                    ) : (
+                                      <span title="Sem anexo">
+                                        <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-8 py-5 text-right">
+                                    <div className="flex items-center justify-end gap-3">
+                                      <span className={`text-[11px] font-black ${t.type === 'INCOME' ? 'text-slate-700' : 'text-rose-500'}`}>
+                                        {t.type === 'EXPENSE' && '- '}{formatCurrency(t.amount)}
+                                      </span>
+                                      <div className="w-4 h-4 bg-emerald-500 rounded flex items-center justify-center">
+                                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="bg-slate-50 border-t border-slate-200">
+                              {/* Total Calculation Row */}
+                              {(() => {
+                                const memberTxs = transactions.filter(t => t.member === viewingMember.name);
+                                const totalIncome = memberTxs.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0);
+                                const totalExpense = memberTxs.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
+                                const balance = totalIncome - totalExpense;
+
+                                return (
+                                  <tr>
+                                    <td colSpan={5} className="px-8 py-5 text-right font-black text-xs text-slate-500 uppercase tracking-widest">Saldo Total</td>
+                                    <td className="px-8 py-5 text-right">
+                                      <span className={`text-xl font-black ${balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(balance)}</span>
+                                    </td>
+                                  </tr>
+                                );
+                              })()}
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {viewingMemberSubTab === 'edit' && (
+                      <div className="animate-slide-up pb-10">
+                        <form onSubmit={handleSaveMember} className="space-y-10">
+
+
+                          {/* Wide Form Layout (2 columns) */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                            {/* Left Column */}
+                            <div className="space-y-10">
+                              {/* Dados pessoais Card */}
+                              <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                                <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2">
+                                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Dados pessoais</h4>
+                                </div>
+                                <div className="p-8 space-y-6">
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nome</label><input required name="firstName" defaultValue={editingMember?.name?.split(' ')[0]} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Sobrenome</label><input required name="lastName" defaultValue={editingMember?.name?.split(' ').slice(1).join(' ')} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Senha</label>
+                                    <div className="relative">
+                                      <input name="password" type="password" placeholder="Para não alterar, deixe em branco" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 shadow-sm" />
+                                      <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de nascimento</label>
+                                      <div className="relative group">
+                                        <input type="date" name="birthDate" defaultValue={editingMember?.birthDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Sexo</label>
+                                      <div className="flex gap-4 py-2">
+                                        <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="gender" value="M" defaultChecked={editingMember?.gender === 'M'} className="w-4 h-4 text-teal-600" /><span className="text-xs font-bold text-slate-700">Masculino</span></label>
+                                        <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="gender" value="F" defaultChecked={editingMember?.gender === 'F'} className="w-4 h-4 text-teal-600" /><span className="text-xs font-bold text-slate-700">Feminino</span></label>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Escolaridade</label>
+                                      <select name="education" defaultValue={editingMember?.education} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700">
+                                        <option value="">Selecione...</option>
+                                        <option value="Ensino Fundamental">Ensino Fundamental</option>
+                                        <option value="Ensino Médio">Ensino Médio</option>
+                                        <option value="Ensino Superior - Cursando">Ensino Superior - Cursando</option>
+                                        <option value="Ensino Superior - Completo">Ensino Superior - Completo</option>
+                                        <option value="Pós-Graduação">Pós-Graduação</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Estado civil</label>
+                                      <select name="maritalStatus" defaultValue={editingMember?.maritalStatus} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700">
+                                        <option value="">Selecione...</option>
+                                        <option value="Solteiro(a)">Solteiro(a)</option>
+                                        <option value="Casado(a)">Casado(a)</option>
+                                        <option value="Divorciado(a)">Divorciado(a)</option>
+                                        <option value="Viúvo(a)">Viúvo(a)</option>
+                                        <option value="União Estável">União Estável</option>
+                                      </select>
+                                    </div>
+                                  </div>
+
+
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nome do Cônjuge</label><input name="spouseName" defaultValue={editingMember?.spouseName} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                                </div>
+                              </div>
+
+                              {/* Outras informações Card */}
+                              <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                                <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                                  <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                                  <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Outras informações</h4>
+                                </div>
+                                <div className="p-8 space-y-6">
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Categorias</label><input name="categories" defaultValue={editingMember?.categories} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Cargos</label><input name="cargos" defaultValue={editingMember?.cargos} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de conversão</label><input type="date" name="conversionDate" defaultValue={editingMember?.conversionDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Batizado</label>
+                                      <div className="flex gap-4 py-2">
+                                        <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="isBaptized" value="true" defaultChecked={editingMember?.isBaptized === true} className="w-4 h-4 text-teal-600" /><span className="text-xs font-bold text-slate-700">Sim</span></label>
+                                        <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="isBaptized" value="false" defaultChecked={editingMember?.isBaptized === false} className="w-4 h-4 text-teal-600" /><span className="text-xs font-bold text-slate-700">Não</span></label>
+                                      </div>
+                                    </div>
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Data de batismo</label><input type="date" name="baptismDate" defaultValue={editingMember?.baptismDate} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700" /></div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right Column */}
+                            <div className="space-y-10">
+                              {/* Contatos Card */}
+                              <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                                <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                                  <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                  <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Contatos</h4>
+                                </div>
+                                <div className="p-8 space-y-6">
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Telefone 1</label><input name="phone" placeholder="+556199369261" defaultValue={editingMember?.phone} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Telefone 2</label><input name="phone2" defaultValue={editingMember?.phone2} placeholder="(00) 00000-0000" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                  </div>
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">E-mail</label><input required name="email" type="email" defaultValue={editingMember?.email} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nível de Acesso</label><select name="role" defaultValue={editingMember?.role || UserRole.READER} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500"><option value={UserRole.ADMIN}>Administrador</option><option value={UserRole.TREASURER}>Tesoureiro</option><option value={UserRole.READER}>Membro Comum</option></select></div>
+                                </div>
+                              </div>
+
+                              {/* Endereço Card */}
+                              <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                                <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                                  <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                                  <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Endereço</h4>
+                                </div>
+                                <div className="p-8 space-y-6">
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Endereço</label><input name="address" defaultValue={editingMember?.address} placeholder="Rua, Conjunto..." className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Número</label><input name="addressNumber" defaultValue={editingMember?.addressNumber} placeholder="Ex: 6g 38" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Bairro</label><input name="neighborhood" defaultValue={editingMember?.neighborhood} placeholder="Ex: Jardim Roriz" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">CEP</label><input name="cep" defaultValue={editingMember?.cep} placeholder="73340-607" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">País</label><select name="country" defaultValue={editingMember?.country || 'Brazil'} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700"><option value="Brazil">Brazil</option></select></div>
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Estado</label><input name="state" defaultValue={editingMember?.state} placeholder="Distrito Federal" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                  </div>
+                                  <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Cidade</label><input name="city" defaultValue={editingMember?.city} placeholder="Brasília" className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                </div>
+                              </div>
+
+                              {/* Anotações Card */}
+                              <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                                <div className="px-8 py-4 border-b border-indigo-50 flex items-center gap-2 bg-slate-50/50">
+                                  <svg className="w-5 h-5 text-[#004a7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                  <h4 className="text-sm font-black text-[#004a7c] uppercase tracking-tight">Anotações</h4>
+                                </div>
+                                <div className="p-8">
+                                  <textarea name="notes" defaultValue={editingMember?.notes} rows={8} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 resize-none focus:border-teal-500" placeholder="Digite suas anotações aqui..." />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-4">
+                            <button type="button" onClick={() => setViewingMemberSubTab('info')} className="flex-1 px-4 py-4 border border-slate-200 rounded-[24px] font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 transition">Descartar</button>
+                            <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white py-4 rounded-[24px] font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition disabled:opacity-50">
+                              {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })())}
           {activeTab === 'agenda' && (
             <div className="animate-slide-up">
               <div className="flex flex-col lg:flex-row gap-8">
@@ -2549,7 +3087,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             start.setDate(start.getDate() - start.getDay());
                             const end = new Date(start);
                             end.setDate(end.getDate() + 6);
-                            return `${start.getDate()} – ${end.getDate()} de ${start.toLocaleString('pt-BR', { month: 'short' })}. de ${start.getFullYear()}`;
+                            return `${start.getDate()} � ${end.getDate()} de ${start.toLocaleString('pt-BR', { month: 'short' })}. de ${start.getFullYear()}`;
                           })()
                         ) : (
                           <>
@@ -3368,7 +3906,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             </div>
           )}
         </div>
-      </main>
+      </main >
 
       {/* --- Modais --- */}
 
@@ -3518,13 +4056,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                             Ver Arquivo
                           </a>
-                          <button type="button" onClick={() => setAttachedUrls(attachedUrls.filter((_, idx) => idx !== i))} className="text-rose-500 font-bold ml-2">×</button>
+                          <button type="button" onClick={() => setAttachedUrls(attachedUrls.filter((_, idx) => idx !== i))} className="text-rose-500 font-bold ml-2">�</button>
                         </div>
                       ))}
                       {txFiles.map((file, i) => (
                         <div key={i} className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
                           <span className="text-[10px] font-bold text-indigo-600 truncate max-w-[100px]">{file.name}</span>
-                          <button type="button" onClick={() => setTxFiles(txFiles.filter((_, idx) => idx !== i))} className="text-rose-500 font-bold ml-2">×</button>
+                          <button type="button" onClick={() => setTxFiles(txFiles.filter((_, idx) => idx !== i))} className="text-rose-500 font-bold ml-2">�</button>
                         </div>
                       ))}
                     </div>
@@ -3581,7 +4119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <input type="hidden" name="type" value={editingCat?.type || 'INCOME'} />
                 <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Nome</label><input required name="name" placeholder="Ex: Manutenção..." defaultValue={editingCat?.name} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
                 <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Descrição</label><input name="description" placeholder="Opcional" defaultValue={editingCat?.description} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold focus:ring-2 focus:ring-indigo-500" /></div>
-                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Cor de Destaque</label><select name="color" defaultValue={editingCat?.color || 'indigo'} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value="indigo">Índigo</option><option value="emerald">Esmeralda</option><option value="rose">Rosa</option><option value="amber">Âmbar</option><option value="blue">Azul</option><option value="teal">Teal</option></select></div>
+                <div><label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Cor de Destaque</label><select name="color" defaultValue={editingCat?.color || 'indigo'} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold"><option value="indigo">Índigo</option><option value="emerald">Esmeralda</option><option value="rose">Rosa</option><option value="amber">�mbar</option><option value="blue">Azul</option><option value="teal">Teal</option></select></div>
                 <div className="pt-4 flex gap-4"><button type="button" onClick={() => setIsCatModalOpen(false)} className="flex-1 px-4 py-4 border border-slate-200 rounded-[20px] font-black uppercase text-[10px] tracking-widest">Sair</button><button type="submit" className="flex-1 bg-slate-900 text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest">{editingCat ? 'Salvar' : 'Criar'}</button></div>
               </form>
             </div>
@@ -3809,7 +4347,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           }}
                           className="text-red-500 text-[10px] font-black uppercase tracking-widest hover:underline text-left px-2"
                         >
-                          × Remover Foto Atual
+                          � Remover Foto Atual
                         </button>
                       )}
                     </div>

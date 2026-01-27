@@ -62,8 +62,8 @@ export const Login: React.FC<LoginProps> = ({ onBack, churchInfo }) => {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="bg-white w-full max-w-md p-10 rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100">
         <div className="text-center mb-10">
-          <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-slate-200/50 border border-slate-50 overflow-hidden transform hover:scale-105 transition duration-500">
-            <img src={churchInfo.logoUrl || '/logo.png'} className="w-20 h-20 object-contain" alt="Logo" />
+          <div className="flex items-center justify-center mx-auto mb-8 hover:scale-105 transition duration-500">
+            <img src={churchInfo.logoUrl || '/logo.png'} className="h-24 w-auto object-contain max-w-[280px]" alt="Logo" />
           </div>
           <h1 className="text-3xl font-black text-slate-900 mb-2">Acesso Restrito</h1>
           <p className="text-slate-500 font-medium">{churchInfo.name}</p>
@@ -107,7 +107,7 @@ export const Login: React.FC<LoginProps> = ({ onBack, churchInfo }) => {
                 type="button"
                 disabled={loading}
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition z-10 cursor-pointer p-1"
               >
                 {showPassword ? (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>

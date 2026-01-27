@@ -8,6 +8,23 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
+/* Hide default password toggle in Edge/IE and Chrome */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+/* Chrome/Opera/Safari */
+input[type="password"]::-webkit-contacts-auto-fill-button,
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  height: 0;
+  width: 0;
+  margin: 0;
+}
+
 /* Custom Quill Styles */
 .ql-toolbar.ql-snow {
   border: none !important;
