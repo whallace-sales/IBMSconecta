@@ -3218,13 +3218,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => { setEditingEvent(null); setIsEventModalOpen(true); }}
-                      className="hidden sm:flex bg-sky-500 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-sky-100 hover:bg-sky-600 transition transform active:scale-95 items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                      Adicionar
-                    </button>
+                    {user.role !== UserRole.READER && (
+                      <button
+                        onClick={() => { setEditingEvent(null); setIsEventModalOpen(true); }}
+                        className="hidden sm:flex bg-sky-500 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-sky-100 hover:bg-sky-600 transition transform active:scale-95 items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                        Adicionar
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex-grow">
@@ -3267,12 +3269,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                                     <div
                                       key={d}
                                       onClick={(e) => {
-                                        if (e.target === e.currentTarget) {
+                                        if (e.target === e.currentTarget && user.role !== UserRole.READER) {
                                           setEditingEvent({ startDate: dateStr, endDate: dateStr, isAllDay: false, isPrivate: false, title: '', repeat: 'NONE' } as any);
                                           setIsEventModalOpen(true);
                                         }
                                       }}
-                                      className={`bg-white h-24 lg:h-40 p-2 lg:p-4 hover:bg-slate-50 transition relative group border-t border-l border-slate-100 cursor-pointer ${isToday ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
+                                      className={`bg-white h-24 lg:h-40 p-2 lg:p-4 hover:bg-slate-50 transition relative group border-t border-l border-slate-100 ${user.role !== UserRole.READER ? 'cursor-pointer' : ''} ${isToday ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
                                     >
                                       <span className={`text-sm font-black ${isToday ? 'text-indigo-600' : 'text-slate-900'} mb-2 block`}>{d}</span>
                                       <div className="space-y-1.5 overflow-y-auto max-h-[calc(100%-2rem)] scrollbar-hide">
@@ -3394,120 +3396,122 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </div>
 
                 {/* Sidebar Categories */}
-                <div className="w-full lg:w-80 shrink-0 space-y-8">
-                  <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
-                    <div className="flex items-center justify-between mb-8">
-                      <h4 className="text-lg font-black text-slate-800 tracking-tight">Categorias</h4>
-                    </div>
-
-                    <div className="space-y-4">
-                      {/* Add Category Section */}
-                      <div className="space-y-3">
-                        <input
-                          value={newEvCatNameInput}
-                          onChange={(e) => setNewEvCatNameInput(e.target.value)}
-                          placeholder="Nova categoria..."
-                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#20b2aa] transition shadow-sm"
-                        />
-                        <button
-                          onClick={async () => {
-                            if (!newEvCatNameInput) return;
-                            try {
-                              const { error } = await supabase.from('event_categories').insert([{ name: newEvCatNameInput, color: '#6366f1' }]);
-                              if (error) throw error;
-                              setNewEvCatNameInput('');
-                              fetchData();
-                            } catch (error: any) {
-                              alert('Erro ao adicionar categoria: ' + error.message);
-                            }
-                          }}
-                          className="w-full bg-[#20b2aa] text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition shadow-md"
-                        >
-                          Adicionar Categoria
-                        </button>
+                {user.role !== UserRole.READER && (
+                  <div className="w-full lg:w-80 shrink-0 space-y-8">
+                    <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
+                      <div className="flex items-center justify-between mb-8">
+                        <h4 className="text-lg font-black text-slate-800 tracking-tight">Categorias</h4>
                       </div>
 
-                      <div className="pt-4 space-y-2 border-t border-slate-50">
-                        <button
-                          onClick={() => setCalendarCatFilter('ALL')}
-                          className={`w-full px-6 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-left transition-all border ${calendarCatFilter === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white text-slate-900 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}
-                        >
-                          Todas Categorias
-                        </button>
+                      <div className="space-y-4">
+                        {/* Add Category Section */}
+                        <div className="space-y-3">
+                          <input
+                            value={newEvCatNameInput}
+                            onChange={(e) => setNewEvCatNameInput(e.target.value)}
+                            placeholder="Nova categoria..."
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#20b2aa] transition shadow-sm"
+                          />
+                          <button
+                            onClick={async () => {
+                              if (!newEvCatNameInput) return;
+                              try {
+                                const { error } = await supabase.from('event_categories').insert([{ name: newEvCatNameInput, color: '#6366f1' }]);
+                                if (error) throw error;
+                                setNewEvCatNameInput('');
+                                fetchData();
+                              } catch (error: any) {
+                                alert('Erro ao adicionar categoria: ' + error.message);
+                              }
+                            }}
+                            className="w-full bg-[#20b2aa] text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition shadow-md"
+                          >
+                            Adicionar Categoria
+                          </button>
+                        </div>
 
-                        {eventCategories.map(cat => (
-                          <div key={cat.id} className="relative group flex items-center gap-2">
-                            {editingEvCatId === cat.id ? (
-                              <div className="flex-grow flex items-center gap-2">
-                                <input
-                                  autoFocus
-                                  value={evCatNameInput}
-                                  onChange={(e) => setEvCatNameInput(e.target.value)}
-                                  className="flex-grow px-4 py-3 bg-white border border-[#20b2aa] rounded-xl text-[10px] font-black uppercase outline-none"
-                                />
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      const { error } = await supabase.from('event_categories').update({ name: evCatNameInput }).eq('id', cat.id);
-                                      if (error) throw error;
-                                      setEditingEvCatId(null);
-                                      fetchData();
-                                    } catch (error: any) {
-                                      alert('Erro ao atualizar: ' + error.message);
-                                    }
-                                  }}
-                                  className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                                </button>
-                                <button
-                                  onClick={() => setEditingEvCatId(null)}
-                                  className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => setCalendarCatFilter(cat.id === calendarCatFilter ? 'ALL' : cat.id)}
-                                  className={`flex-grow px-6 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-left transition-all border ${calendarCatFilter === cat.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg scale-[1.02]' : 'bg-white text-slate-900 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}
-                                >
-                                  {cat.name}
-                                </button>
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-all p-1 rounded-lg">
+                        <div className="pt-4 space-y-2 border-t border-slate-50">
+                          <button
+                            onClick={() => setCalendarCatFilter('ALL')}
+                            className={`w-full px-6 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-left transition-all border ${calendarCatFilter === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white text-slate-900 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}
+                          >
+                            Todas Categorias
+                          </button>
+
+                          {eventCategories.map(cat => (
+                            <div key={cat.id} className="relative group flex items-center gap-2">
+                              {editingEvCatId === cat.id ? (
+                                <div className="flex-grow flex items-center gap-2">
+                                  <input
+                                    autoFocus
+                                    value={evCatNameInput}
+                                    onChange={(e) => setEvCatNameInput(e.target.value)}
+                                    className="flex-grow px-4 py-3 bg-white border border-[#20b2aa] rounded-xl text-[10px] font-black uppercase outline-none"
+                                  />
                                   <button
-                                    onClick={() => {
-                                      setEditingEvCatId(cat.id);
-                                      setEvCatNameInput(cat.name);
+                                    onClick={async () => {
+                                      try {
+                                        const { error } = await supabase.from('event_categories').update({ name: evCatNameInput }).eq('id', cat.id);
+                                        if (error) throw error;
+                                        setEditingEvCatId(null);
+                                        fetchData();
+                                      } catch (error: any) {
+                                        alert('Erro ao atualizar: ' + error.message);
+                                      }
                                     }}
-                                    className={`p-1 px-2 transition ${calendarCatFilter === cat.id ? 'text-white/70 hover:text-white' : 'text-slate-400 hover:text-indigo-600'}`}
-                                    title="Editar"
+                                    className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteEventCat(cat.id)}
-                                    className={`p-1 px-2 transition ${calendarCatFilter === cat.id ? 'text-white/70 hover:text-white' : 'text-slate-400 hover:text-rose-500'}`}
-                                    title="Excluir"
+                                    onClick={() => setEditingEvCatId(null)}
+                                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
                                   </button>
                                 </div>
-                              </>
-                            )}
-                          </div>
-                        ))}
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => setCalendarCatFilter(cat.id === calendarCatFilter ? 'ALL' : cat.id)}
+                                    className={`flex-grow px-6 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-left transition-all border ${calendarCatFilter === cat.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg scale-[1.02]' : 'bg-white text-slate-900 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}
+                                  >
+                                    {cat.name}
+                                  </button>
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-all p-1 rounded-lg">
+                                    <button
+                                      onClick={() => {
+                                        setEditingEvCatId(cat.id);
+                                        setEvCatNameInput(cat.name);
+                                      }}
+                                      className={`p-1 px-2 transition ${calendarCatFilter === cat.id ? 'text-white/70 hover:text-white' : 'text-slate-400 hover:text-indigo-600'}`}
+                                      title="Editar"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteEventCat(cat.id)}
+                                      className={`p-1 px-2 transition ${calendarCatFilter === cat.id ? 'text-white/70 hover:text-white' : 'text-slate-400 hover:text-rose-500'}`}
+                                      title="Excluir"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="bg-indigo-600 rounded-[40px] p-8 text-white shadow-xl shadow-indigo-100 ring-4 ring-indigo-50">
-                    <svg className="w-10 h-10 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <h5 className="font-bold text-lg mb-2">Dica da Agenda</h5>
-                    <p className="text-indigo-100 text-sm leading-relaxed">Cadastre e organize as atividades no calendário para que todos da liderança fiquem sintonizados.</p>
+                    <div className="bg-indigo-600 rounded-[40px] p-8 text-white shadow-xl shadow-indigo-100 ring-4 ring-indigo-50">
+                      <svg className="w-10 h-10 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <h5 className="font-bold text-lg mb-2">Dica da Agenda</h5>
+                      <p className="text-indigo-100 text-sm leading-relaxed">Cadastre e organize as atividades no calendário para que todos da liderança fiquem sintonizados.</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
