@@ -5429,7 +5429,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </svg>
               </button>
             )}
-            {activeTab === 'agenda' && (
+            {activeTab === 'agenda' && user.role !== UserRole.READER && (
               <button
                 onClick={() => { setEditingEvent(null); setIsEventModalOpen(true); }}
                 className="bg-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_15px_30px_rgba(79,70,229,0.4)] flex items-center justify-center hover:bg-indigo-700 transition-all duration-300 active:scale-90"
