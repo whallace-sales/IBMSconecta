@@ -3,7 +3,7 @@ import { User, UserRole, Transaction, Category, Post, ChurchInfo, CalendarEvent,
 import { INITIAL_CHURCH_INFO } from '../constants';
 import { Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { supabase } from '../supabaseClient';
-import { getTransactions, getCategories, getPosts, getProfile, getChurchInfo, updateChurchInfo, getEvents, getEventCategories, getDepartments, getDepartmentRoles, getDepartmentMembers } from '../services/api';
+import { getTransactions, getCategories, getPosts, getProfile, getChurchInfo, updateChurchInfo, getEvents, getEventCategories, getDepartments, getDepartmentRoles, getDepartmentMembers, togglePostFavorite } from '../services/api';
 
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
@@ -1341,6 +1341,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
   };
 
+  const handleTogglePostFavorite = async (id: string, currentStatus: boolean | undefined) => {
+    if (confirm('Deseja realmente alterar o status de favorito desta publicação?')) {
+      try {
+        await togglePostFavorite(id, !currentStatus);
+        fetchData();
+      } catch (error) {
+        alert('Erro ao alterar status de favorito.');
+      }
+    }
+  };
+
   const handleDeletePost = async (id: string) => {
     if (confirm('Deseja realmente excluir este post?')) {
       await supabase.from('posts').delete().eq('id', id);
@@ -2612,7 +2623,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 {posts.map(post => (
                   <div key={post.id} className={`bg-white rounded-[40px] overflow-hidden shadow-sm border border-slate-100 group flex flex-col transition-all ${!post.isActive ? 'opacity-50 grayscale' : ''}`}>
                     <img src={post.imageUrl} className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-105" alt={post.title} />
-                    <div className="p-8 flex-grow">
+                    <div className="p-8 flex-grow relative">
+                      {post.isFavorite && (
+                        <div className="absolute top-0 right-0 p-4">
+                          <svg className="w-6 h-6 text-yellow-500 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between mb-4">
                         <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{post.date}</span>
                         {!post.isActive && <span className="bg-slate-900 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Inativo</span>}
@@ -2628,9 +2644,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         })()}
                       </p>
                       {user.role !== UserRole.READER && (
-                        <div className="flex gap-4 pt-6 border-t border-slate-50">
+                        <div className="flex gap-4 pt-6 border-t border-slate-50 flex-wrap">
                           <button onClick={() => { setEditingPost(post); setPostContent(post.content); setPostImageFile(null); setPostImagePreview(null); setPostImageSource('url'); setIsPostModalOpen(true); }} className="text-indigo-600 font-black text-[10px] uppercase hover:underline">Editar</button>
                           <button onClick={() => togglePostVisibility(post.id)} className={`${post.isActive ? 'text-orange-500' : 'text-emerald-500'} font-black text-[10px] uppercase hover:underline`}>{post.isActive ? 'Ocultar' : 'Exibir'}</button>
+                          <button onClick={() => handleTogglePostFavorite(post.id, post.isFavorite)} className={`${post.isFavorite ? 'text-yellow-500' : 'text-slate-400'} font-black text-[10px] uppercase hover:underline`}>{post.isFavorite ? 'Desfavoritar' : 'Favoritar'}</button>
                           <button onClick={() => handleDeletePost(post.id)} className="text-red-500 font-black text-[10px] uppercase hover:underline">Excluir</button>
                         </div>
                       )}

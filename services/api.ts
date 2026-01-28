@@ -57,6 +57,7 @@ export const getPosts = async (): Promise<Post[]> => {
             .from('posts')
             .select('*, profiles(name, avatar_url)')
             .eq('is_active', true)
+            // .order('is_favorite', { ascending: false }) // Comentado temporariamente até que a coluna seja criada no DB
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -69,7 +70,8 @@ export const getPosts = async (): Promise<Post[]> => {
             authorAvatarUrl: post.profiles?.avatar_url,
             date: post.date,
             imageUrl: post.image_url,
-            isActive: post.is_active
+            isActive: post.is_active,
+            isFavorite: post.is_favorite
         }));
     } catch (error) {
         console.error('Error fetching posts:', error);
@@ -95,11 +97,27 @@ export const getPost = async (id: string): Promise<Post | null> => {
             authorAvatarUrl: data.profiles?.avatar_url,
             date: data.date,
             imageUrl: data.image_url,
-            isActive: data.is_active
+            isActive: data.is_active,
+            isFavorite: data.is_favorite
         };
     } catch (error) {
         console.error('Error fetching post:', error);
         return null;
+    }
+};
+
+export const togglePostFavorite = async (id: string, isFavorite: boolean) => {
+    try {
+        const { error } = await supabase
+            .from('posts')
+            .update({ is_favorite: isFavorite })
+            .eq('id', id);
+
+        if (error) throw error;
+        return true;
+    } catch (error) {
+        console.error('Error toggling post favorite:', error);
+        throw error;
     }
 };
 

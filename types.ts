@@ -64,6 +64,7 @@ export interface Post {
   date: string;
   imageUrl: string;
   isActive?: boolean;
+  isFavorite?: boolean;
 }
 
 export interface Transaction {
