@@ -1346,8 +1346,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       try {
         await togglePostFavorite(id, !currentStatus);
         fetchData();
-      } catch (error) {
-        alert('Erro ao alterar status de favorito.');
+      } catch (error: any) {
+        console.error('Error details:', error);
+        alert(`Erro ao alterar status de favorito: ${error.message || error.error_description || 'Erro desconhecido'}`);
       }
     }
   };
