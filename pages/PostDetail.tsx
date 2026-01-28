@@ -78,7 +78,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
 
         <div
           className="prose prose-lg prose-indigo max-w-none text-slate-700 leading-relaxed space-y-4 md:space-y-6 text-lg md:text-xl post-content"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: post.content.replace(/&nbsp;/g, ' ') }}
         />
 
         <footer className="pt-8 md:pt-12 border-t border-slate-100">
