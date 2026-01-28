@@ -149,15 +149,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [viewingMember, setViewingMember] = useState<User | null>(null);
   const [viewingMemberSubTab, setViewingMemberSubTab] = useState<'info' | 'finances' | 'edit'>('info');
 
-  /* Effect to handle 'my_data' tab (User Profile) */
-  useEffect(() => {
-    if (activeTab === 'my_data') {
-      setViewingMember(user);
-      setViewingMemberSubTab('edit');
-      setEditingMember(user);
-    }
-  }, [activeTab, user]);
-
   /* Effect to redirect when closing 'Dados' modal */
   useEffect(() => {
     if (activeTab === 'my_data' && !viewingMember) {
@@ -1472,7 +1463,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     return (
       <button
-        onClick={isLogout ? onLogout : () => setActiveTab(id)}
+        onClick={isLogout ? onLogout : () => {
+          if (id === 'my_data') {
+            setViewingMember(user);
+            setViewingMemberSubTab('edit');
+            setEditingMember(user);
+            setActiveTab('my_data');
+          } else {
+            setActiveTab(id);
+          }
+        }}
         className={`relative flex items-center transition-all duration-300 group py-3.5 mx-3 rounded-2xl mb-1
           ${isSidebarCollapsed ? 'justify-center px-0 mx-2' : 'px-5 gap-4'}
           ${isActive
@@ -5546,7 +5546,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
             {user.role === UserRole.READER && (
               <button
-                onClick={() => setActiveTab('my_data')}
+                onClick={() => {
+                  setViewingMember(user);
+                  setViewingMemberSubTab('edit');
+                  setEditingMember(user);
+                  setActiveTab('my_data');
+                }}
                 className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'my_data' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 {activeTab === 'my_data' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
