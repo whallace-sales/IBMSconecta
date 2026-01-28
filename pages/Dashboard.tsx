@@ -4631,7 +4631,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       {
         isPostModalOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in">
-            <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl p-10">
+            <div className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl p-10 max-h-[90vh] overflow-y-auto">
               <h3 className="text-2xl font-black mb-8 text-slate-900 tracking-tight">{editingPost ? 'Editar Publicação' : 'Nova Publicação'}</h3>
               <form onSubmit={handleSavePost} className="space-y-6">
                 <input required name="title" placeholder="Título da Publicação" defaultValue={editingPost?.title} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-[20px] outline-none font-bold" />
@@ -4688,7 +4688,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   )}
                 </div>
 
-                <div className="flex flex-col h-80">
+                <div className="flex flex-col h-[60vh]">
                   <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Conteúdo</label>
                   <div className="flex-grow rounded-2xl overflow-hidden border border-slate-200">
                     <ReactQuill
