@@ -40,13 +40,20 @@ export const PublicBlog: React.FC<PublicBlogProps> = ({ onNavigate }) => {
                 <span>Por {post.author}</span>
               </div>
               <h2 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight group-hover:text-indigo-600 transition tracking-tight">{post.title}</h2>
-              <p className="text-gray-600 text-base md:text-lg leading-relaxed line-clamp-3 md:line-clamp-3">
+              <p className="text-gray-600 text-base md:text-lg leading-relaxed line-clamp-3 md:line-clamp-4 whitespace-pre-line">
                 {(() => {
+                  const content = post.content
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<\/p>/gi, '\n')
+                    .replace(/<\/div>/gi, '\n')
+                    .replace(/<\/li>/gi, '\n')
+                    .replace(/&nbsp;/g, ' ');
+
                   if (typeof window !== 'undefined') {
-                    const doc = new DOMParser().parseFromString(post.content, 'text/html');
+                    const doc = new DOMParser().parseFromString(content, 'text/html');
                     return doc.body.textContent || "";
                   }
-                  return post.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
+                  return content.replace(/<[^>]*>/g, '');
                 })()}
               </p>
               <button
