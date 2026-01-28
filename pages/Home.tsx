@@ -80,7 +80,15 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, churchInfo }) => {
                   <div className="p-6 flex-grow">
                     <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">{post.date?.split('-').reverse().join('/')}</span>
                     <h3 className="text-xl font-bold mt-2 mb-3 text-gray-900 line-clamp-1">{post.title}</h3>
-                    <p className="text-gray-600 line-clamp-2 text-sm leading-relaxed mb-4">{post.content.replace(/<[^>]*>/g, '')}</p>
+                    <p className="text-gray-600 line-clamp-2 text-sm leading-relaxed mb-4">
+                      {(() => {
+                        if (typeof window !== 'undefined') {
+                          const doc = new DOMParser().parseFromString(post.content, 'text/html');
+                          return doc.body.textContent || "";
+                        }
+                        return post.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
+                      })()}
+                    </p>
                     <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
                       <span className="text-sm text-gray-400">Por {post.author}</span>
                       <button onClick={() => onNavigate('post-detail', post.id)} className="text-indigo-600 font-medium hover:text-indigo-800 text-sm">Ler mais</button>
