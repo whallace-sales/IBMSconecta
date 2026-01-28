@@ -33,7 +33,11 @@ export const Login: React.FC<LoginProps> = ({ onBack, churchInfo }) => {
 
       // onLogin is handled by the auth state listener in App.tsx
     } catch (err: any) {
-      setError(err.message || 'Falha ao realizar login.');
+      if (err.message === 'Invalid login credentials') {
+        setError('Usuários ou senha incorreto, favor verificar');
+      } else {
+        setError(err.message || 'Falha ao realizar login.');
+      }
     } finally {
       setLoading(false);
     }
