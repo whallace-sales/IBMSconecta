@@ -148,6 +148,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [editingMember, setEditingMember] = useState<User | null>(null);
   const [viewingMember, setViewingMember] = useState<User | null>(null);
   const [viewingMemberSubTab, setViewingMemberSubTab] = useState<'info' | 'finances' | 'edit'>('info');
+
+  /* Effect to handle 'my_data' tab (User Profile) */
+  useEffect(() => {
+    if (activeTab === 'my_data') {
+      setViewingMember(user);
+      setViewingMemberSubTab('edit');
+      setEditingMember(user);
+    }
+  }, [activeTab, user]);
+
+  /* Effect to redirect when closing 'Dados' modal */
+  useEffect(() => {
+    if (activeTab === 'my_data' && !viewingMember) {
+      setActiveTab('overview');
+    }
+  }, [viewingMember, activeTab]);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
 
   // Estados de Escalas
@@ -235,6 +251,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       maximumFractionDigits: 2
     })}`;
   };
+
+  /* Effect to handle 'my_data' tab (User Profile) */
+  useEffect(() => {
+    if (activeTab === 'my_data') {
+      setViewingMember(user);
+      setViewingMemberSubTab('edit');
+      setEditingMember(user); // Ensure editing state is ready
+    }
+  }, [activeTab, user]);
+
+  /* Effect to redirect when closing 'Dados' modal */
+  useEffect(() => {
+    if (activeTab === 'my_data' && !viewingMember) {
+      setActiveTab('overview');
+    }
+  }, [viewingMember, activeTab]);
 
   useEffect(() => {
     fetchData();
@@ -5403,6 +5435,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         )
       }
 
+      {activeTab === 'my_data' && (
+        <div className="min-h-[50vh] flex items-center justify-center">
+          <p className="text-slate-400 font-medium animate-pulse">Carregando perfil...</p>
+        </div>
+      )}
+
       {/* Floating Action Button - Mobile Only */}
       {
         ['overview', 'finances', 'members', 'agenda'].includes(activeTab) && (
@@ -5503,6 +5541,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" />
                 </svg>
                 <span className="text-[10px] font-black uppercase tracking-[0.05em]">Conteúdo</span>
+              </button>
+            )}
+
+            {user.role === UserRole.READER && (
+              <button
+                onClick={() => setActiveTab('my_data')}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'my_data' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {activeTab === 'my_data' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+                <svg className={`w-8 h-8 ${activeTab === 'my_data' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-[0.05em]">Dados</span>
               </button>
             )}
 
