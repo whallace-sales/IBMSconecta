@@ -138,6 +138,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'monthList' | 'weekList'>('month');
   const [calendarCatFilter, setCalendarCatFilter] = useState<string>('ALL');
+  const [showMobileMenu, setShowMobileMenu] = useState(true);
   const [isEventCatModalOpen, setIsEventCatModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -2380,7 +2381,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   {/* Mobile Card View */}
                   <div className="lg:hidden divide-y divide-slate-100">
                     {allUsers.map(u => (
-                      <div key={u.id} className="p-4 flex items-center gap-4">
+                      <div key={u.id} onClick={() => setViewingMember(u)} className="p-4 flex items-center gap-4 active:bg-slate-50 transition cursor-pointer">
                         <img
                           src={u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`}
                           className="w-12 h-12 rounded-full border border-slate-100 shadow-sm"
@@ -2394,15 +2395,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           </div>
                         </div>
                         <div className="flex flex-col gap-2">
-                          <button onClick={() => {
+                          <button onClick={(e) => {
+                            e.stopPropagation();
                             setViewingMember(u);
                             setEditingMember(u);
                             setViewingMemberSubTab('edit');
                             setAvatarPreview(null);
                             setTempAvatarFile(null);
                             setIsAvatarRemoved(false);
-                          }} className="text-indigo-600 font-black text-[9px] uppercase">Editar</button>
-                          <button onClick={() => handleDeleteMember(u.id)} className="text-red-500 font-black text-[9px] uppercase">Remover</button>
+                          }} className="text-indigo-600 font-black text-[9px] uppercase hover:underline text-left">Editar</button>
+                          <button onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMember(u.id);
+                          }} className="text-red-500 font-black text-[9px] uppercase hover:underline text-left">Remover</button>
                         </div>
                       </div>
                     ))}
@@ -3267,7 +3272,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                                           setIsEventModalOpen(true);
                                         }
                                       }}
-                                      className={`bg-white h-32 lg:h-40 p-4 hover:bg-slate-50 transition relative group border-t border-l border-slate-100 cursor-pointer ${isToday ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
+                                      className={`bg-white h-24 lg:h-40 p-2 lg:p-4 hover:bg-slate-50 transition relative group border-t border-l border-slate-100 cursor-pointer ${isToday ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
                                     >
                                       <span className={`text-sm font-black ${isToday ? 'text-indigo-600' : 'text-slate-900'} mb-2 block`}>{d}</span>
                                       <div className="space-y-1.5 overflow-y-auto max-h-[calc(100%-2rem)] scrollbar-hide">
@@ -4771,8 +4776,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-10 animate-in fade-in duration-300 printable-modal print:items-start print:pt-0 print:p-0">
             <div className="bg-[#f8f9fc] w-full max-w-6xl h-full rounded-[40px] shadow-2xl flex flex-col overflow-hidden print:overflow-visible print:h-auto print:rounded-none print:shadow-none px-4">
               {/* Profile Header */}
-              <div className={`bg-white px-10 py-8 border-b border-slate-100 flex items-center gap-8 relative shrink-0 ${viewingMemberSubTab === 'finances' ? 'print:hidden' : ''}`}>
-                <div className={`w-36 h-36 rounded-3xl overflow-hidden border-4 border-white shadow-xl shrink-0 relative group ${viewingMemberSubTab === 'edit' ? 'cursor-pointer' : ''}`}
+              <div className={`bg-white px-6 py-6 md:px-10 md:py-8 border-b border-slate-100 flex flex-col md:flex-row items-center gap-6 md:gap-8 relative shrink-0 ${viewingMemberSubTab === 'finances' ? 'print:hidden' : ''}`}>
+                <button
+                  onClick={() => setViewingMember(null)}
+                  className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full text-slate-500 md:hidden z-10"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+                <div className={`w-28 h-28 md:w-36 md:h-36 rounded-3xl overflow-hidden border-4 border-white shadow-xl shrink-0 relative group ${viewingMemberSubTab === 'edit' ? 'cursor-pointer' : ''}`}
                   onClick={() => {
                     if (viewingMemberSubTab === 'edit') {
                       const fileInput = document.getElementById('viewingMemberAvatarInput') as HTMLInputElement;
@@ -5429,108 +5440,130 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         )
       }
 
-      <nav className="lg:hidden fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[32px] z-40 print:hidden safe-area-bottom px-2 h-24 overflow-hidden">
-        <div className="flex items-center h-full overflow-x-auto gap-2 px-2 pb-2 scrollbar-hide snap-x">
+      {/* Controle de Visibilidade do Menu Mobile */}
+      {!showMobileMenu && (
+        <div className="lg:hidden fixed bottom-6 right-4 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'overview' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            onClick={() => setShowMobileMenu(true)}
+            className="bg-indigo-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-transform"
           >
-            {activeTab === 'overview' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
-            <svg className={`w-8 h-8 ${activeTab === 'overview' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Início</span>
-          </button>
-
-          {(user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
-            <button
-              onClick={() => setActiveTab('finances')}
-              className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'finances' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              {activeTab === 'finances' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
-              <svg className={`w-8 h-8 ${activeTab === 'finances' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Finanças</span>
-            </button>
-          )}
-
-          {(user.role === UserRole.ADMIN || user.role === UserRole.READER) && (
-            <button
-              onClick={() => setActiveTab('posts')}
-              className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'posts' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              {activeTab === 'posts' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
-              <svg className={`w-8 h-8 ${activeTab === 'posts' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" />
-              </svg>
-              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Conteúdo</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setActiveTab('agenda')}
-            className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'agenda' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            {activeTab === 'agenda' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
-            <svg className={`w-8 h-8 ${activeTab === 'agenda' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Agenda</span>
-          </button>
-
-          {user.role === UserRole.ADMIN && (
-            <button
-              onClick={() => setActiveTab('members')}
-              className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'members' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              {activeTab === 'members' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
-              <svg className={`w-8 h-8 ${activeTab === 'members' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Membros</span>
-            </button>
-          )}
-
-          {(user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'reports' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              {activeTab === 'reports' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
-              <svg className={`w-8 h-8 ${activeTab === 'reports' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Relatórios</span>
-            </button>
-          )}
-
-
-
-          {user.role === UserRole.ADMIN && (
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'settings' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              {activeTab === 'settings' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
-              <svg className={`w-8 h-8 ${activeTab === 'settings' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Config</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setIsMobileSidebarOpen(true)}
-            className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-all duration-300 min-w-[70px] snap-center"
-          >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            <span className="text-[10px] font-black uppercase tracking-[0.05em]">Menu</span>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
           </button>
         </div>
-      </nav>
+      )}
+
+      <div className={`lg:hidden fixed bottom-6 left-4 right-4 z-40 print:hidden safe-area-bottom transition-all duration-500 ease-in-out ${showMobileMenu ? 'translate-y-0' : 'translate-y-[150%] opacity-0 pointer-events-none'}`}>
+        <div className="absolute -top-12 left-0 right-0 flex justify-center pb-2 pointer-events-auto">
+          <button
+            onClick={() => setShowMobileMenu(false)}
+            className="bg-white/80 backdrop-blur-md text-slate-500 hover:text-indigo-600 px-4 py-2 rounded-full shadow-sm border border-white/20 active:scale-95 transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+          >
+            <span>Ocultar</span>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+          </button>
+        </div>
+
+        <nav className="bg-white/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[32px] px-2 h-24 overflow-hidden w-full">
+          <div className="flex items-center h-full overflow-x-auto gap-2 px-2 pb-2 scrollbar-hide snap-x">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'overview' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {activeTab === 'overview' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+              <svg className={`w-8 h-8 ${activeTab === 'overview' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Início</span>
+            </button>
+
+            {(user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
+              <button
+                onClick={() => setActiveTab('finances')}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'finances' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {activeTab === 'finances' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+                <svg className={`w-8 h-8 ${activeTab === 'finances' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-[0.05em]">Finanças</span>
+              </button>
+            )}
+
+            {(user.role === UserRole.ADMIN || user.role === UserRole.READER) && (
+              <button
+                onClick={() => setActiveTab('posts')}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'posts' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {activeTab === 'posts' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+                <svg className={`w-8 h-8 ${activeTab === 'posts' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM7 8h5m-5 4h10" />
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-[0.05em]">Conteúdo</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setActiveTab('agenda')}
+              className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'agenda' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {activeTab === 'agenda' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+              <svg className={`w-8 h-8 ${activeTab === 'agenda' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Agenda</span>
+            </button>
+
+            {user.role === UserRole.ADMIN && (
+              <button
+                onClick={() => setActiveTab('members')}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'members' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {activeTab === 'members' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+                <svg className={`w-8 h-8 ${activeTab === 'members' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-[0.05em]">Membros</span>
+              </button>
+            )}
+
+            {(user.role === UserRole.ADMIN || user.role === UserRole.TREASURER) && (
+              <button
+                onClick={() => setActiveTab('reports')}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'reports' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {activeTab === 'reports' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+                <svg className={`w-8 h-8 ${activeTab === 'reports' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-[0.05em]">Relatórios</span>
+              </button>
+            )}
+
+            {user.role === UserRole.ADMIN && (
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative min-w-[70px] snap-center ${activeTab === 'settings' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {activeTab === 'settings' && <div className="absolute -top-1 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>}
+                <svg className={`w-8 h-8 ${activeTab === 'settings' ? 'scale-110' : 'scale-100'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-[0.05em]">Config</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-all duration-300 min-w-[70px] snap-center"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span className="text-[10px] font-black uppercase tracking-[0.05em]">Menu</span>
+            </button>
+          </div>
+        </nav>
+      </div>
 
     </div >
   );
