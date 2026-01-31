@@ -777,7 +777,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     const email = formData.get('email') as string;
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
-    const name = `${firstName} ${lastName}`.trim();
+    const name = `${firstName} ${lastName}`.trim().toUpperCase();
     const role = formData.get('role') as UserRole;
 
     let avatarUrl = isAvatarRemoved ? null : editingMember?.avatarUrl;
@@ -2385,7 +2385,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                               />
                             </td>
                             <td className="px-8 py-4">
-                              <div className="font-bold text-indigo-900 text-sm tracking-tight">{u.name}</div>
+                              <div className="font-bold text-indigo-900 text-sm tracking-tight uppercase">{u.name}</div>
                               <div className="text-[10px] text-slate-400 font-medium truncate max-w-[150px]">{u.email}</div>
                             </td>
                             <td className="px-8 py-4 text-slate-500 text-xs font-bold whitespace-nowrap">
@@ -2431,7 +2431,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           className="w-12 h-12 rounded-full border border-slate-100 shadow-sm"
                         />
                         <div className="flex-grow min-w-0">
-                          <p className="font-bold text-slate-900 text-sm truncate">{u.name}</p>
+                          <p className="font-bold text-slate-900 text-sm truncate uppercase">{u.name}</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[10px] text-slate-500">{u.role}</span>
                             <span className="text-[10px] text-slate-300">⬢</span>
@@ -3019,8 +3019,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                                 </div>
                                 <div className="p-8 space-y-6">
                                   <div className="grid grid-cols-2 gap-6">
-                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nome</label><input required name="firstName" defaultValue={editingMember?.name?.split(' ')[0]} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
-                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Sobrenome</label><input required name="lastName" defaultValue={editingMember?.name?.split(' ').slice(1).join(' ')} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500" /></div>
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Nome</label><input required name="firstName" defaultValue={editingMember?.name?.split(' ')[0]} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 uppercase" /></div>
+                                    <div><label className="block text-[10px] font-bold text-slate-800 uppercase mb-2">Sobrenome</label><input required name="lastName" defaultValue={editingMember?.name?.split(' ').slice(1).join(' ')} className="w-full px-4 py-3 bg-white border border-teal-500/30 rounded-lg outline-none font-bold text-slate-700 focus:border-teal-500 uppercase" /></div>
                                   </div>
 
                                   <div>
